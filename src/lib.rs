@@ -112,6 +112,8 @@ struct State {
     switch: bool,
     diffuse_bind_group: wgpu::BindGroup,
     diffuse_texture: texture::Texture,
+    diffuse_bind_group_2: wgpu::BindGroup,
+    diffuse_texture_2: texture::Texture,
 }
 
 #[repr(C)]
@@ -197,12 +199,17 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        // load a texture
+        // load a texture - happy tree
         let diffuse_bytes = include_bytes!("happy-tree.png");
         let diffuse_image = image::load_from_memory(diffuse_bytes).unwrap();
-
         let diffuse_texture =
             texture::Texture::from_image(&device, &queue, &diffuse_image, Some("happy-tree")).unwrap();
+
+        // load a texture - keyboard
+        let diffuse_bytes_2 = include_bytes!("keyboard.jpg");
+        let diffuse_image_2 = image::load_from_memory(diffuse_bytes_2).unwrap();
+        let diffuse_texture_2 =
+            texture::Texture::from_image(&device, &queue, &diffuse_image_2, Some("keyboard")).unwrap();
 
         // bind group to let the shader bind the texture
         let texture_bind_group_layout =
@@ -243,6 +250,22 @@ impl State {
                     },
                 ],
                 label: Some("diffuse_bind_group"),
+            }
+        );
+        let diffuse_bind_group_2 = device.create_bind_group(
+            &wgpu::BindGroupDescriptor {
+                layout: &&texture_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&diffuse_texture_2.view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&diffuse_texture_2.sampler),
+                    },
+                ],
+                label: Some("diffuse_bind_group_2"),
             }
         );
 
@@ -330,6 +353,8 @@ impl State {
             num_indices,
             diffuse_bind_group,
             diffuse_texture,
+            diffuse_bind_group_2,
+            diffuse_texture_2,
             switch: false,
         }
     }
@@ -390,12 +415,14 @@ impl State {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
-            if !self.switch || true {
+            if !self.switch {
                 render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
-                render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-                render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+            } else {
+                render_pass.set_bind_group(0, &self.diffuse_bind_group_2, &[]);
             }
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
         }
 
         // submit will accept anything that implements IntoIter
