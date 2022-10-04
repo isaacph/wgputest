@@ -122,9 +122,7 @@ impl CameraController {
             f.y = 0.0;
             f.normalize()
         };
-        println!("Forward: {}, {}, {}", forward.x, forward.y, forward.z);
         let right = forward.cross(Vector3::unit_y());
-        // println!("Right: {}, {}, {}", right.x, right.y, right.z);
 
         let mut dir = Vector3::zero();
         if self.inputs.contains(&W) { dir += forward; }
@@ -134,9 +132,6 @@ impl CameraController {
         if dir != Vector3::zero() {
             dir = dir.normalize();
             let change = dir * self.speed * delta_time;
-            println!("Dir: {}, {}, {}", dir.x, dir.y, dir.z);
-            println!("Change: {}, {}, {}", change.x, change.y, change.z);
-
             camera.pos += change;
         }
 
