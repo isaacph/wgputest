@@ -497,14 +497,12 @@ impl RenderEngine {
 
             // render instructions go here
             let instances = world.objects.iter().map(|obj| {
-                let position = cgmath::Vector2::new(obj.position.x, obj.position.y);
-                    Instance {
-                        position,
-                        scale: cgmath::Vector2::new(1.0, 1.0),
-                        color: obj.color,
-                    }
+                Instance {
+                    position: obj.position,
+                    scale: obj.scale,
+                    color: obj.color,
                 }
-            ).collect::<Vec<_>>();
+            }).collect::<Vec<_>>();
             self.texture_renderer.render(render.device, render.queue, &mut render_pass, render.camera, &instances, &self.solid_texture)?;
             // when we add font rendering, time to fight with the borrow checker, probably
         }
