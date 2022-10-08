@@ -2,27 +2,40 @@ use image::GenericImageView;
 use anyhow::*;
 
 pub struct Texture {
+    pub id: String,
     pub texture: wgpu::Texture,
     pub view: wgpu::TextureView,
     pub sampler: wgpu::Sampler,
 }
 
 impl Texture {
+    pub fn blank_texture(device: &wgpu::Device, queue: &wgpu::Queue, id: &str) -> Result<Self> {
+        let mut image = image::DynamicImage::new_rgba8(1, 1);
+        if let Some(pixels) = image.as_mut_rgba8() {
+            for x in 0..pixels.len() {
+                if let Some(pixel) = pixels.get_mut(x) {
+                    *pixel = 255;
+                }
+            }
+        }
+        Self::from_image(device, queue, &image, id)
+    }
+
     pub fn from_bytes(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         bytes: &[u8],
-        label: &str
+        id: &str
     ) -> Result<Self> {
         let img = image::load_from_memory(bytes)?;
-        Self::from_image(device, queue, &img, Some(label))
+        Self::from_image(device, queue, &img, id)
     }
 
     pub fn from_image(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         img: &image::DynamicImage,
-        label: Option<&str>
+        id: &str
     ) -> Result<Self> {
         let diffuse_rgba = img.to_rgba8();
         let dimensions = img.dimensions();
@@ -34,7 +47,7 @@ impl Texture {
         };
         let texture = device.create_texture(
             &wgpu::TextureDescriptor {
-                label: Some("diffuse_texture"),
+                label: Some((String::from("diffuse_texture_") + id).as_str()),
                 // All textures are stored as 3D, we represent our 2D
                 // texture by setting depth to 1
                 size: texture_size,
@@ -83,6 +96,7 @@ impl Texture {
             texture,
             sampler,
             view,
+            id: String::from(id),
         })
     }
 }
