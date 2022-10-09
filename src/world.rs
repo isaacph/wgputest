@@ -13,7 +13,7 @@ pub struct World {
 impl World {
     pub fn new() -> Self {
         use cgmath::Vector2;
-        let objects = (0..10).into_iter().map(|i| {
+        let objects = (0..(10)).into_iter().map(|i| {
             GameObject {
                 position: Vector2::new((i as f32) * 0.8, (i as f32) * 0.8),
                 scale: Vector2::new(1.5, 0.9),
