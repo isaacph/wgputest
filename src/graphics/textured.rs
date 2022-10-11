@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Range, rc::Rc};
 
 use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
@@ -200,6 +200,71 @@ pub struct TextureRenderer {
     // color_buffer: wgpu::Buffer,
 }
 
+pub struct InstanceList {
+    instance_buffer_list: Vec<Rc<wgpu::Buffer>>,
+    instance_buffer_instances: Vec<u32>,
+    used: usize,
+}
+
+impl InstanceList {
+    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue) -> Self {
+        let instance_buffer_list = (0..INSTANCE_BUFFERS).into_iter().map(|_| {
+            Rc::new(device.create_buffer_init(
+                &wgpu::util::BufferInitDescriptor {
+                    label: Some("instance_buffer"),
+                    contents: bytemuck::cast_slice(&INSTANCE_BUFFER_DEFAULT),
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                }
+            ))
+        }).collect::<Vec<_>>();
+        let instance_buffer_instances = (0..INSTANCE_BUFFERS).into_iter().map(|_| 0).collect::<Vec<_>>();
+        Self { instance_buffer_list, instance_buffer_instances, used: 0 }
+    }
+
+    pub fn reset(&mut self) {
+        self.used = 0;
+    }
+
+    pub fn fill_next_buffers(&mut self, queue: &wgpu::Queue, instances_groups: Vec<Vec<Instance>>) -> Range<usize> {
+        // split instances apart
+        let mut instance_regrouped = vec![];
+        for mut instances in instances_groups {
+            while !instances.is_empty() {
+                instance_regrouped.push(
+                    instances.drain(0..std::cmp::min(instances.len(), INSTANCE_BUFFER_DEFAULT.len()))
+                        .collect::<Vec<_>>(),
+                );
+            }
+        }
+
+        if self.instance_buffer_list.len() + self.used < instance_regrouped.len() {
+            panic!("Gave too many instances even after grouping! {} groups. Can only support {} number of groups of {} size that share the same texture",
+                   instance_regrouped.len() + self.used, INSTANCE_BUFFERS, INSTANCE_BUFFER_DEFAULT.len());
+        }
+        let start = self.used;
+        self.instance_buffer_instances = instance_regrouped.into_iter().map(|instances| {
+            // grab next instance buffer
+            let instance_buffer = &self.instance_buffer_list[self.used];
+            self.used += 1;
+            
+            // process instances and write them to the buffer
+            let buffer = instances.iter().map(|instance| instance.to_raw()).collect::<Vec<_>>();
+            let buffer_bytes = bytemuck::cast_slice(&buffer);
+            queue.write_buffer(instance_buffer, 0, buffer_bytes);
+
+            instances.len() as u32
+        }).collect();
+        let end = self.used;
+        Range { start, end }
+    }
+
+    pub fn get_buffers(&self, range: Range<usize>) -> Vec<(Rc<wgpu::Buffer>, u32)> {
+        let a = self.instance_buffer_list[range].into_iter();
+        let b = self.instance_buffer_instances[range].into_iter();
+        std::iter::zip(a, b).map(|(a, b)| (*a, *b)).collect()
+    }
+}
+
 impl TextureRenderer {
     pub fn init(
         device: &wgpu::Device,
@@ -394,42 +459,26 @@ impl TextureRenderer {
         }
     }
 
-    pub fn render<'a>(&'a mut self, device: &mut wgpu::Device, queue: &mut wgpu::Queue, render_pass: &mut wgpu::RenderPass<'a>, camera: &Camera, instance_pairs_input: Vec<(Vec<Instance>, &Texture)>) -> Result<(), wgpu::SurfaceError> {
+    pub fn update_camera(&self, queue: &wgpu::Queue, camera: &Camera) {
         // update the camera
         let mut camera_uniform = CameraUniform::new();
         camera_uniform.update_view_proj(camera);
         queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[camera_uniform]));
+    }
 
-        for (_, texture) in &instance_pairs_input {
+    pub fn prep_textures(&mut self, device: &wgpu::Device, textures: &[&Texture]) {
+        for texture in textures {
             self.texture_bind_groups.make_texture_bind_group(device, texture);
         }
+    }
 
-        // split instances apart
-        let mut instance_pairs = vec![];
-        for (mut instances, texture) in instance_pairs_input {
-            while !instances.is_empty() {
-                instance_pairs.push(
-                    (
-                        instances.drain(0..std::cmp::min(instances.len(), INSTANCE_BUFFER_DEFAULT.len()))
-                            .collect::<Vec<_>>(),
-                        texture
-                    )
-                );
-            }
-        }
+    // before calling this:
+    //   prep_textures for all given textures
+    //   update_camera with a borrow of the current camera state
+    //   InstaceList.next_buffers with Instance data
+    pub fn render<'a>(&'a self, render_pass: &'a mut wgpu::RenderPass<'a>, instance_pairs_input: ((Rc<wgpu::Buffer>, u32), &Texture)) -> Result<(), wgpu::SurfaceError> {
 
-        if self.instance_buffer_list.len() < instance_pairs.len() {
-            panic!("Gave too many instances even after grouping! {} groups. Can only support {} number of groups of {} size that share the same texture",
-                   instance_pairs.len(), INSTANCE_BUFFERS, INSTANCE_BUFFER_DEFAULT.len());
-        }
-        let mut instance_buffer_iter = self.instance_buffer_list.iter();
-        for (instances, texture) in instance_pairs {
-            // make and set instance buffer, resetting if the number of instances changes
-            let instance_buffer = instance_buffer_iter.next().unwrap();
-            let buffer = instances.iter().map(|instance| instance.to_raw()).collect::<Vec<_>>();
-            let buffer_bytes = bytemuck::cast_slice(&buffer);
-            queue.write_buffer(instance_buffer, 0, buffer_bytes);
-
+        for ((instance_buffer, instances_len), texture) in [instance_pairs_input] {
             // retrieve bind group for the given texture
             let diffuse_bind_group = self.texture_bind_groups.get_texture_bind_group(texture)
                 .expect("Could not find texture bind group (should be impossible");
@@ -441,7 +490,7 @@ impl TextureRenderer {
             render_pass.set_vertex_buffer(0, self.square_vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, instance_buffer.slice(..));
 
-            render_pass.draw(0..self.square_num_vertices, 0..(instances.len() as u32));
+            render_pass.draw(0..self.square_num_vertices, 0..instances_len);
         }
         Ok(())
     }

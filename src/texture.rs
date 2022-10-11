@@ -21,7 +21,7 @@ impl Texture {
         Self::from_image(device, queue, &image, id)
     }
 
-    pub fn from_bytes(
+    pub fn from_image_bytes(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         bytes: &[u8],
@@ -31,15 +31,14 @@ impl Texture {
         Self::from_image(device, queue, &img, id)
     }
 
-    pub fn from_image(
+    pub fn from_bytes(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        img: &image::DynamicImage,
-        id: &str
+        diffuse_rgba: &[u8],
+        dimensions: (u32, u32),
+        id: &str,
+        format: wgpu::TextureFormat
     ) -> Result<Self> {
-        let diffuse_rgba = img.to_rgba8();
-        let dimensions = img.dimensions();
-
         let texture_size = wgpu::Extent3d {
             width: dimensions.0,
             height: dimensions.1,
@@ -55,7 +54,7 @@ impl Texture {
                 sample_count: 1,
                 dimension: wgpu::TextureDimension::D2,
                 // reflecting that most images are stored as sRGB
-                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                format,
                 // TEXTURE_BINDING tells wgpu that we want to use this texture in shaders
                 // COPY_DST means that we want to copy data to this texture
                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
@@ -98,5 +97,17 @@ impl Texture {
             view,
             id: String::from(id),
         })
+    }
+
+    pub fn from_image(
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        img: &image::DynamicImage,
+        id: &str
+    ) -> Result<Self> {
+        let diffuse_rgba = img.to_rgba8();
+        let dimensions = img.dimensions();
+
+        Self::from_bytes(device, queue, &diffuse_rgba, dimensions, id, wgpu::TextureFormat::Rgba8UnormSrgb)
     }
 }

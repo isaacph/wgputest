@@ -15,6 +15,7 @@ bytemuck = { version = "1.4", features = [ "derive" ] }
 anyhow = "1.0"
 cgmath = "0.18"
 instant = "0.1"
+freetype-sys = { version = "0.15.0" }
 
 # webassembly dependency
 cfg-if = "1"
