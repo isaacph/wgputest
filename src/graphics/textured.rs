@@ -8,6 +8,8 @@ use crate::{camera::Camera, texture::Texture};
 const INSTANCE_BUFFERS: u32 = 64;
 const INSTANCE_BUFFER_DEFAULT: [InstanceRaw; 16] = [InstanceRaw { model: [[0.0; 4]; 4], color: [0.0; 4] }; 16];
 
+use std::cell::Cell;
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct CameraUniform {
@@ -195,12 +197,17 @@ pub struct TextureRenderer {
     camera_buffer: wgpu::Buffer,
 
     instance_buffer_list: Vec<wgpu::Buffer>,
+    current_buffer: Cell<usize>,
 
     // color_bind_group: wgpu::BindGroup,
     // color_buffer: wgpu::Buffer,
 }
 
 impl TextureRenderer {
+    pub fn add_texture<'a, T: Iterator>(&mut self, device: &wgpu::Device, textures: T) where T::Item : Into<&'a Texture> {
+        textures.for_each(|texture| self.texture_bind_groups.make_texture_bind_group(device, texture.into()));
+    }
+
     pub fn init(
         device: &wgpu::Device,
         _queue: &wgpu::Queue,
@@ -391,18 +398,23 @@ impl TextureRenderer {
             square_vertex_buffer,
             square_num_vertices,
             instance_buffer_list,
+            current_buffer: Cell::new(0)
         }
     }
 
-    pub fn render<'a>(&'a mut self, device: &mut wgpu::Device, queue: &mut wgpu::Queue, render_pass: &mut wgpu::RenderPass<'a>, camera: &Camera, instance_pairs_input: Vec<(Vec<Instance>, &Texture)>) -> Result<(), wgpu::SurfaceError> {
+    pub fn reset(&self) {
+        self.current_buffer.set(0)
+    }
+
+    pub fn render<'a>(&'a self, queue: &mut wgpu::Queue, render_pass: &mut wgpu::RenderPass<'a>, camera: &Camera, instance_pairs_input: Vec<(Vec<Instance>, &Texture)>) -> Result<(), wgpu::SurfaceError> {
         // update the camera
         let mut camera_uniform = CameraUniform::new();
         camera_uniform.update_view_proj(camera);
         queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[camera_uniform]));
 
-        for (_, texture) in &instance_pairs_input {
-            self.texture_bind_groups.make_texture_bind_group(device, texture);
-        }
+        // for (_, texture) in &instance_pairs_input {
+        //     self.texture_bind_groups.make_texture_bind_group(device, texture);
+        // }
 
         // split instances apart
         let mut instance_pairs = vec![];
@@ -417,15 +429,16 @@ impl TextureRenderer {
                 );
             }
         }
-
-        if self.instance_buffer_list.len() < instance_pairs.len() {
+        let mut current_buffer = self.current_buffer.get();
+        if self.instance_buffer_list.len() < instance_pairs.len() + current_buffer {
             panic!("Gave too many instances even after grouping! {} groups. Can only support {} number of groups of {} size that share the same texture",
                    instance_pairs.len(), INSTANCE_BUFFERS, INSTANCE_BUFFER_DEFAULT.len());
         }
-        let mut instance_buffer_iter = self.instance_buffer_list.iter();
+        self.current_buffer.set(current_buffer + instance_pairs.len());
         for (instances, texture) in instance_pairs {
-            // make and set instance buffer, resetting if the number of instances changes
-            let instance_buffer = instance_buffer_iter.next().unwrap();
+            // grab the next instance buffer and write the new data to it
+            let instance_buffer = &self.instance_buffer_list[current_buffer];
+            current_buffer += 1;
             let buffer = instances.iter().map(|instance| instance.to_raw()).collect::<Vec<_>>();
             let buffer_bytes = bytemuck::cast_slice(&buffer);
             queue.write_buffer(instance_buffer, 0, buffer_bytes);

@@ -25,8 +25,10 @@ impl RenderEngine {
             Texture::from_image(&device, &queue, &diffuse_image, "happy-tree").unwrap();
         let solid_texture =
             Texture::blank_texture(&device, &queue, "blank").unwrap();
+        let mut texture_renderer = TextureRenderer::init(device, queue, config);
+        texture_renderer.add_texture(device, [&diffuse_texture, &solid_texture].into_iter());
         Self {
-            texture_renderer: TextureRenderer::init(device, queue, config),
+            texture_renderer,
             diffuse_texture,
             solid_texture,
         }
@@ -62,6 +64,7 @@ impl RenderEngine {
                 ],
                 depth_stencil_attachment: None,
             });
+            self.texture_renderer.reset();
 
             // render instructions go here
             let instances = world.objects.iter().map(|obj| {
@@ -71,12 +74,15 @@ impl RenderEngine {
                     color: obj.color,
                 }
             }).collect::<Vec<_>>();
-            self.texture_renderer.render(render.device, render.queue, &mut render_pass, render.camera,
+            self.texture_renderer.render(render.queue, &mut render_pass, render.camera,
                 vec![
                    (
                        instances[instances.len()/2..].to_vec(),
                        &self.diffuse_texture
                    ),
+                ])?;
+            self.texture_renderer.render(render.queue, &mut render_pass, render.camera,
+                vec![
                    (
                        instances[0..instances.len()/2].to_vec(),
                        &self.solid_texture
