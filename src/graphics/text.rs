@@ -289,6 +289,39 @@ impl Font {
     }
 }
 
+//  pipeline plans
+//  use instancing (buffer)
+//      each instance has matrix, character index (u16)
+//
+//  use first red-only texture with packed char spritesheet
+//  uniform buffer with color
+//  vertex buffer with just a 0-1/0-1 (xy/uv min-max) textured quad
+//
+//  use second texture with packed char positions
+//      record packed position of each character by index
+//      TextureDescriptor
+//          pixel (TextureFormat) is R16Uint (texture sheet up to 65536x65536)
+//          dimension is D1
+//          usages: COPY_DST and TEXTURE_BINDING
+//      BindGroupLayoutEntry 0
+//          visibility: VERTEX
+//          ty: BindingType::Texture { view_dimension: D1, sample_type: Uint, multisampled: false }
+//          count: None
+//      BindGroupLayoutEntry 1
+//          visibility: VERTEX
+//          ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
+//          count: None
+//      BindGroup
+//          layout
+//              0: TextureView(&default)
+//              1: Sampler { address_mode_*: CLAMP_TO_EDGE, *_filter: NEAREST, mipmap_filter:
+//                 NEAREST, ... }
+//      
+//  so we take a matrix, character index, color
+//  grab texture position from second texture at character index
+//  send to FS vertex, tex coord
+//  output sampling of texture * color
+
 // struct Shader {
 //     handle: GLuint,
 //     u_color: GLint,
