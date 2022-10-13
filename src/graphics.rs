@@ -2,7 +2,6 @@ use crate::{texture::Texture, camera::Camera, world::World};
 use self::textured::{TextureRenderer, Instance};
 
 pub mod textured;
-pub mod text;
 
 pub struct RenderPrereq<'a> {
     pub device: &'a mut wgpu::Device,
@@ -12,7 +11,6 @@ pub struct RenderPrereq<'a> {
 }
 
 pub struct RenderEngine {
-    pub instance_list: textured::InstanceList,
     pub texture_renderer: TextureRenderer,
     pub diffuse_texture: Texture,
     pub solid_texture: Texture,
@@ -28,10 +26,8 @@ impl RenderEngine {
         let solid_texture =
             Texture::blank_texture(&device, &queue, "blank").unwrap();
         let mut texture_renderer = TextureRenderer::init(device, queue, config);
-        texture_renderer.prep_textures(device, &[&diffuse_texture, &solid_texture]);
-        let instance_list = textured::InstanceList::new(device, queue);
+        texture_renderer.add_texture(device, [&diffuse_texture, &solid_texture].into_iter());
         Self {
-            instance_list,
             texture_renderer,
             diffuse_texture,
             solid_texture,
@@ -47,24 +43,6 @@ impl RenderEngine {
         });
 
         {
-
-            let instances = world.objects.iter().map(|obj| {
-                Instance {
-                    position: obj.position,
-                    scale: obj.scale,
-                    color: obj.color,
-                }
-            }).collect::<Vec<_>>();
-            self.instance_list.reset();
-            let range = self.instance_list.fill_next_buffers(
-                render.queue,
-                vec![
-                    instances[instances.len()/2..].to_vec(),
-                    instances[0..instances.len()/2].to_vec(),
-                ]
-            );
-            let instance_buffers = self.instance_list.get_buffers(range);
-
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[
@@ -86,10 +64,30 @@ impl RenderEngine {
                 ],
                 depth_stencil_attachment: None,
             });
+            self.texture_renderer.reset();
 
             // render instructions go here
-            let instance_buffers = vec![(instance_buffers[0].clone(), &self.diffuse_texture), (instance_buffers[1].clone(), &self.solid_texture)];
-            self.texture_renderer.render(&mut render_pass, instance_buffers[0].clone())?;
+            let instances = world.objects.iter().map(|obj| {
+                Instance {
+                    position: obj.position,
+                    scale: obj.scale,
+                    color: obj.color,
+                }
+            }).collect::<Vec<_>>();
+            self.texture_renderer.render(render.queue, &mut render_pass, render.camera,
+                vec![
+                   (
+                       instances[instances.len()/2..].to_vec(),
+                       &self.diffuse_texture
+                   ),
+                ])?;
+            self.texture_renderer.render(render.queue, &mut render_pass, render.camera,
+                vec![
+                   (
+                       instances[0..instances.len()/2].to_vec(),
+                       &self.solid_texture
+                   ),
+                ])?;
             // when we add font rendering, time to fight with the borrow checker, probably
         }
 
