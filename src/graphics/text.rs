@@ -1,5 +1,4 @@
 use std::{rc::Rc, collections::HashMap};
-use freetype_sys::{FT_Library, FT_Init_FreeType, FT_Done_FreeType, FT_Face, FT_New_Memory_Face, FT_Set_Pixel_Sizes, FT_Get_Char_Index, FT_UInt, FT_LOAD_DEFAULT, FT_Load_Glyph, FT_GLYPH_FORMAT_BITMAP, FT_Render_Glyph, FT_RENDER_MODE_NORMAL, FT_Glyph_Metrics, FT_Pos};
 use self::packing::{GlyphSize, GlyphPacking, GlyphInfo};
 use cgmath::{Matrix4, Vector4, Vector2};
 
@@ -11,59 +10,59 @@ pub fn default_characters() -> Vec<char> {
     chars.iter().map(|i| char::from_u32(*i).unwrap()).collect()
 }
 
-pub struct FontLibrary {
-    ft_library: FT_Library,
-    // shader: Rc<Shader>
-}
-
-impl FontLibrary {
-    pub fn new() -> FontLibrary {
-        unsafe {
-            let mut font_library = FontLibrary{
-                ft_library: 0usize as _,
-                // shader: Rc::new(shader())
-            };
-            let error = FT_Init_FreeType(&mut font_library.ft_library);
-            if error != 0 {
-                panic!("Error initializing freetype: {}", error);
-            }
-            font_library
-        }
-    }
-}
-
-// It's ok to drop the FontLibrary before all fonts are dropped because:
-// - Rc will ensure the shader isn't dropped
-// - The FT_Library is only needed to instantiate new fonts.
-//   Since it is not needed for existing fonts, the FT_Library can safely be dropped
-//   before all fonts are dropped
-impl Drop for FontLibrary {
-    fn drop(&mut self) {
-        unsafe {
-            FT_Done_FreeType(self.ft_library);
-        }
-    }
-}
-
-impl FontLibrary {
-    // pub fn make_font<'a, T>(&mut self, path: &str, font_size: i32, char_codes: T, not_found_char: Option<char>) -> Font
-    //         where T: Iterator<Item = &'a char> {
-    //     let info = make_font(self, path, font_size, char_codes, not_found_char);
-    //     Font::new(self, &info)
-    // }
-}
+// pub struct FontLibrary {
+//     ft_library: FT_Library,
+//     // shader: Rc<Shader>
+// }
+// 
+// impl FontLibrary {
+//     pub fn new() -> FontLibrary {
+//         unsafe {
+//             let mut font_library = FontLibrary{
+//                 ft_library: 0usize as _,
+//                 // shader: Rc::new(shader())
+//             };
+//             let error = FT_Init_FreeType(&mut font_library.ft_library);
+//             if error != 0 {
+//                 panic!("Error initializing freetype: {}", error);
+//             }
+//             font_library
+//         }
+//     }
+// }
+// 
+// // It's ok to drop the FontLibrary before all fonts are dropped because:
+// // - Rc will ensure the shader isn't dropped
+// // - The FT_Library is only needed to instantiate new fonts.
+// //   Since it is not needed for existing fonts, the FT_Library can safely be dropped
+// //   before all fonts are dropped
+// impl Drop for FontLibrary {
+//     fn drop(&mut self) {
+//         unsafe {
+//             FT_Done_FreeType(self.ft_library);
+//         }
+//     }
+// }
+// 
+// impl FontLibrary {
+//     // pub fn make_font<'a, T>(&mut self, path: &str, font_size: i32, char_codes: T, not_found_char: Option<char>) -> Font
+//     //         where T: Iterator<Item = &'a char> {
+//     //     let info = make_font(self, path, font_size, char_codes, not_found_char);
+//     //     Font::new(self, &info)
+//     // }
+// }
 
 struct GlyphBitmap {
-    width: FT_Pos,
-    height: FT_Pos,
+    width: i32,
+    height: i32,
     buffer: Vec<u8>,
     metrics: FT_Glyph_Metrics,
     char: char,
-    char_index: FT_UInt
+    char_index: u32
 }
 
-impl GlyphSize<FT_UInt> for GlyphBitmap {
-    fn id(&self) -> FT_UInt {
+impl GlyphSize<i32> for GlyphBitmap {
+    fn id(&self) -> u32 {
         self.char_index
     }
     fn width(&self) -> packing::Coord {
@@ -75,7 +74,7 @@ impl GlyphSize<FT_UInt> for GlyphBitmap {
 }
 
 // applies packing by copying glyphs to positions specified by the packing into a new vector
-fn apply_packing(glyphs: &Vec<GlyphBitmap>, packing: &GlyphPacking<FT_UInt>) -> Vec<u8> {
+fn apply_packing(glyphs: &Vec<GlyphBitmap>, packing: &GlyphPacking<i32>) -> Vec<u8> {
     let mut image: Vec<u8> = Vec::new();
     let width: usize = packing.width().try_into().unwrap();
     let height: usize = packing.height().try_into().unwrap();
@@ -117,143 +116,143 @@ pub struct FontInfo {
     pub height: f32
 }
 
-pub fn make_font<'a, T>(library: &FontLibrary, path: &str, font_size: i32, char_codes: T, not_found_char: Option<char>) -> FontInfo
-        where T: Iterator<Item = &'a char> {
-    unsafe {
-        let mut face: FT_Face = 0usize as _;
-
-        let data = match std::fs::read(path) {
-            Result::Ok(data) => data,
-            Result::Err(err) => panic!("Failed to read file {}: {}", path, err)
-        };
-
-        // load all glyph data from freetype
-        let error = FT_New_Memory_Face(
-            library.ft_library,
-            data.as_ptr(),
-            data.len().try_into().unwrap(),
-            0,
-            &mut face
-        );
-        if error != 0 {
-            panic!("Error loading font ({}): {}", path, error);
-        }
-
-        // make sure we don't get like a seg fault, instead panic
-        assert!(face != std::ptr::null_mut() && (*face).size != std::ptr::null_mut());
-
-        let error = FT_Set_Pixel_Sizes(
-            face,
-            0,
-            font_size.try_into().expect("Invalid negative font size")
-        );
-        if error != 0 {
-            panic!("Error setting font size ({}): {}", path, error);
-        }
-        let load_flags = FT_LOAD_DEFAULT;
-        let mut found_not_found_char = false;
-        let glyphs: Vec<GlyphBitmap> = char_codes.map(|c| {
-            // load glyph
-            // check if it fulfills the not_found_char requirement (if needed)
-            match not_found_char {
-                Some(nfc) =>
-                    if *c == nfc {
-                        found_not_found_char = true;
-                    },
-                _ => ()
-            }
-            let index = FT_Get_Char_Index(face, ((*c) as u64).try_into().unwrap());
-            let error = FT_Load_Glyph(
-                face,
-                index,
-                load_flags
-            );
-            if error != 0 {
-                panic!("Error loading font glyph ({}) at index {}: {}", path, index, error);
-            }
-            if (*(*face).glyph).format != FT_GLYPH_FORMAT_BITMAP {
-                let error = FT_Render_Glyph((*face).glyph, FT_RENDER_MODE_NORMAL);
-                if error != 0 {
-                    panic!("Error rendering font glyph({}) at index {}: {}", path, index, error);
-                }
-            }
-
-            // save glyph
-            let slot = (*face).glyph;
-            let bitmap = &(*slot).bitmap;
-            // maybe eventually, instead of this way, we will just FT_LOAD_BITMAP_METRICS_ONLY
-            // to compute spritesheet packing and then re-render again, copying directly to spritesheet.
-            // i have no idea if that would actually be faster because while memory would be saved and fewer
-            // pixels would be copied, glyph metrics would be calculated twice, and i have no idea how costly
-            // that would be.
-            GlyphBitmap {
-                buffer: {
-                    let mut buffer = Vec::<u8>::with_capacity((bitmap.width * bitmap.rows).try_into().unwrap());
-                    for i in 0..bitmap.rows {
-                        let row_start: usize = (i * bitmap.pitch).try_into().unwrap();
-                        for i in 0..bitmap.pitch {
-                            let pos: usize = row_start + (i as usize);
-                            buffer.push(*bitmap.buffer.add(pos));
-                        }
-                    }
-                    buffer
-                },
-                width: bitmap.width.try_into().unwrap(),
-                height: bitmap.rows.try_into().unwrap(),
-                metrics: (*slot).metrics,
-                char_index: index,
-                char: *c
-            }
-        }).collect();
-        match not_found_char {
-            Some(_) => assert!(found_not_found_char),
-            _ => ()
-        }
-
-        // make this padded thing pad each glyph by 1 px, and then send it to do_font_packing
-        let padded: Vec<GlyphInfo<u32>> = glyphs.iter().map(|glyph| {
-            GlyphInfo {
-                id: glyph.char_index,
-                width: glyph.width as u32 + 1,
-                height: glyph.height as u32 + 1
-            }
-        }).collect();
-
-        // pack the glyphs
-        let packing = match packing::do_font_packing(&padded) {
-            Some(packing) => packing,
-            None => panic!("Error loading font {} size {}: could not pack", path, font_size)
-        };
-
-        // apparently it's in fractional pixels?
-        let frac_pixels = 1.0 / 64.0;
-        let font_size = font_size as f32;
-
-        // create an image and isolate important metrics
-        FontInfo {
-            image_buffer: apply_packing(&glyphs, &packing),
-            image_size: Vector2::new(packing.width(), packing.height()),
-            char_data: glyphs.iter().map(|glyph| (
-                glyph.char,
-                GlyphMetrics {
-                    glyph_pos: {
-                        let v = packing.get_glyph_pos(glyph.char_index).unwrap();
-                        Vector2::new(v.x as f32, v.y as f32)
-                    },
-                    glyph_size: Vector2::new(glyph.width as f32, glyph.height as f32),
-                    advance: glyph.metrics.horiAdvance as f32 * frac_pixels,
-                    lsb: glyph.metrics.horiBearingX as f32 * frac_pixels,
-                    tsb: glyph.metrics.horiBearingY as f32 * frac_pixels
-                }
-            )).collect(),
-            font_size,
-            not_found_char: not_found_char,
-            ascent: (*(*face).size).metrics.ascender as f32 * frac_pixels,
-            descent: (*(*face).size).metrics.descender as f32 * frac_pixels,
-            height: (*(*face).size).metrics.height as f32 * frac_pixels,
-        }
-    }
-}
+// pub fn make_font<'a, T>(library: &FontLibrary, path: &str, font_size: i32, char_codes: T, not_found_char: Option<char>) -> FontInfo
+//         where T: Iterator<Item = &'a char> {
+//     unsafe {
+//         let mut face: FT_Face = 0usize as _;
+// 
+//         let data = match std::fs::read(path) {
+//             Result::Ok(data) => data,
+//             Result::Err(err) => panic!("Failed to read file {}: {}", path, err)
+//         };
+// 
+//         // load all glyph data from freetype
+//         let error = FT_New_Memory_Face(
+//             library.ft_library,
+//             data.as_ptr(),
+//             data.len().try_into().unwrap(),
+//             0,
+//             &mut face
+//         );
+//         if error != 0 {
+//             panic!("Error loading font ({}): {}", path, error);
+//         }
+// 
+//         // make sure we don't get like a seg fault, instead panic
+//         assert!(face != std::ptr::null_mut() && (*face).size != std::ptr::null_mut());
+// 
+//         let error = FT_Set_Pixel_Sizes(
+//             face,
+//             0,
+//             font_size.try_into().expect("Invalid negative font size")
+//         );
+//         if error != 0 {
+//             panic!("Error setting font size ({}): {}", path, error);
+//         }
+//         let load_flags = FT_LOAD_DEFAULT;
+//         let mut found_not_found_char = false;
+//         let glyphs: Vec<GlyphBitmap> = char_codes.map(|c| {
+//             // load glyph
+//             // check if it fulfills the not_found_char requirement (if needed)
+//             match not_found_char {
+//                 Some(nfc) =>
+//                     if *c == nfc {
+//                         found_not_found_char = true;
+//                     },
+//                 _ => ()
+//             }
+//             let index = FT_Get_Char_Index(face, ((*c) as u64).try_into().unwrap());
+//             let error = FT_Load_Glyph(
+//                 face,
+//                 index,
+//                 load_flags
+//             );
+//             if error != 0 {
+//                 panic!("Error loading font glyph ({}) at index {}: {}", path, index, error);
+//             }
+//             if (*(*face).glyph).format != FT_GLYPH_FORMAT_BITMAP {
+//                 let error = FT_Render_Glyph((*face).glyph, FT_RENDER_MODE_NORMAL);
+//                 if error != 0 {
+//                     panic!("Error rendering font glyph({}) at index {}: {}", path, index, error);
+//                 }
+//             }
+// 
+//             // save glyph
+//             let slot = (*face).glyph;
+//             let bitmap = &(*slot).bitmap;
+//             // maybe eventually, instead of this way, we will just FT_LOAD_BITMAP_METRICS_ONLY
+//             // to compute spritesheet packing and then re-render again, copying directly to spritesheet.
+//             // i have no idea if that would actually be faster because while memory would be saved and fewer
+//             // pixels would be copied, glyph metrics would be calculated twice, and i have no idea how costly
+//             // that would be.
+//             GlyphBitmap {
+//                 buffer: {
+//                     let mut buffer = Vec::<u8>::with_capacity((bitmap.width * bitmap.rows).try_into().unwrap());
+//                     for i in 0..bitmap.rows {
+//                         let row_start: usize = (i * bitmap.pitch).try_into().unwrap();
+//                         for i in 0..bitmap.pitch {
+//                             let pos: usize = row_start + (i as usize);
+//                             buffer.push(*bitmap.buffer.add(pos));
+//                         }
+//                     }
+//                     buffer
+//                 },
+//                 width: bitmap.width.try_into().unwrap(),
+//                 height: bitmap.rows.try_into().unwrap(),
+//                 metrics: (*slot).metrics,
+//                 char_index: index,
+//                 char: *c
+//             }
+//         }).collect();
+//         match not_found_char {
+//             Some(_) => assert!(found_not_found_char),
+//             _ => ()
+//         }
+// 
+//         // make this padded thing pad each glyph by 1 px, and then send it to do_font_packing
+//         let padded: Vec<GlyphInfo<u32>> = glyphs.iter().map(|glyph| {
+//             GlyphInfo {
+//                 id: glyph.char_index,
+//                 width: glyph.width as u32 + 1,
+//                 height: glyph.height as u32 + 1
+//             }
+//         }).collect();
+// 
+//         // pack the glyphs
+//         let packing = match packing::do_font_packing(&padded) {
+//             Some(packing) => packing,
+//             None => panic!("Error loading font {} size {}: could not pack", path, font_size)
+//         };
+// 
+//         // apparently it's in fractional pixels?
+//         let frac_pixels = 1.0 / 64.0;
+//         let font_size = font_size as f32;
+// 
+//         // create an image and isolate important metrics
+//         FontInfo {
+//             image_buffer: apply_packing(&glyphs, &packing),
+//             image_size: Vector2::new(packing.width(), packing.height()),
+//             char_data: glyphs.iter().map(|glyph| (
+//                 glyph.char,
+//                 GlyphMetrics {
+//                     glyph_pos: {
+//                         let v = packing.get_glyph_pos(glyph.char_index).unwrap();
+//                         Vector2::new(v.x as f32, v.y as f32)
+//                     },
+//                     glyph_size: Vector2::new(glyph.width as f32, glyph.height as f32),
+//                     advance: glyph.metrics.horiAdvance as f32 * frac_pixels,
+//                     lsb: glyph.metrics.horiBearingX as f32 * frac_pixels,
+//                     tsb: glyph.metrics.horiBearingY as f32 * frac_pixels
+//                 }
+//             )).collect(),
+//             font_size,
+//             not_found_char: not_found_char,
+//             ascent: (*(*face).size).metrics.ascender as f32 * frac_pixels,
+//             descent: (*(*face).size).metrics.descender as f32 * frac_pixels,
+//             height: (*(*face).size).metrics.height as f32 * frac_pixels,
+//         }
+//     }
+// }
 
 #[derive(Clone)]
 pub struct Vertex {
