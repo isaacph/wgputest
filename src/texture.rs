@@ -119,7 +119,7 @@ impl Texture {
             &diffuse_rgba,
             dimensions,
             id,
-            wgpu::TextureFormat::R8Unorm,
+            wgpu::TextureFormat::Rgba8UnormSrgb,
             4,
             wgpu::TextureDimension::D2,
             filter

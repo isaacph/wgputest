@@ -31,7 +31,7 @@ impl RenderEngine {
         let mut texture_renderer = TextureRenderer::init(device, queue, config);
         texture_renderer.add_texture(device, [&diffuse_texture, &solid_texture].into_iter());
         let font_info = make_font_infos(
-            include_bytes!("arial.ttf"), &[16.0], default_characters().iter(), None, "arial".to_string()).unwrap();
+            include_bytes!("arial.ttf"), &[48.0], default_characters().iter(), None, "arial".to_string()).unwrap();
         let font = Font::make_from_info(device, queue, &font_info[0], wgpu::FilterMode::Linear).unwrap();
         let mut font_renderer = FontRenderer::new(device, queue, config).unwrap();
         font_renderer.register_font(device, &font);
@@ -85,26 +85,34 @@ impl RenderEngine {
                     color: obj.color,
                 }
             }).collect::<Vec<_>>();
-            // self.texture_renderer.render(render.queue, &mut render_pass, render.camera,
-            //     vec![
-            //        (
-            //            instances[instances.len()/2..].to_vec(),
-            //            &self.diffuse_texture
-            //        ),
-            //     ])?;
-            // self.texture_renderer.render(render.queue, &mut render_pass, render.camera,
-            //     vec![
-            //        (
-            //            instances[0..instances.len()/2].to_vec(),
-            //            &self.solid_texture
-            //        ),
-            //     ])?;
-            self.font_renderer.render(&self.font, render.queue, &mut render_pass, &vec![
+            self.texture_renderer.render(render.queue, &mut render_pass, render.camera,
+                vec![
+                   (
+                       instances[instances.len()/2..].to_vec(),
+                       &self.diffuse_texture
+                   ),
+                ])?;
+            self.font_renderer.render(&self.font, render.queue, &mut render_pass, &render.camera,
+                  &vec![
+                (format!("I should be behind stuff"),
+                cgmath::Vector2::new(200.0, 400.0),
+                cgmath::Vector4::new(1.0, 0.5, 1.0, 1.0))
+            ])?;
+            self.texture_renderer.render(render.queue, &mut render_pass, render.camera,
+                vec![
+                   (
+                       instances[0..instances.len()/2].to_vec(),
+                       &self.solid_texture
+                   ),
+                ])?;
+            self.font_renderer.render(&self.font, render.queue, &mut render_pass, &render.camera,
+                  &vec![
                 (format!("Hello World!"),
-                render.camera.ortho() * cgmath::Matrix4::from_translation(
-                    cgmath::Vector3::new(100.0, 100.0, 0.0)
-                ),
-                cgmath::Vector4::new(1.0, 1.0, 1.0, 1.0))
+                cgmath::Vector2::new(100.0, 100.0),
+                cgmath::Vector4::new(1.0, 1.0, 1.0, 1.0)),
+                (format!("What's up? We got instancing,\nnew lines, colors, etc"),
+                cgmath::Vector2::new(80.0, 200.0),
+                cgmath::Vector4::new(1.0, 0.5, 0.0, 1.0))
             ])?;
             // when we add font rendering, time to fight with the borrow checker, probably
         }

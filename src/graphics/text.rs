@@ -1,5 +1,5 @@
 use std::{collections::HashMap, cell::Cell};
-use crate::util::PartialOrdMinMax;
+use crate::{util::PartialOrdMinMax, camera::Camera};
 use crate::texture::Texture;
 
 use self::packing::{GlyphPacking, GlyphInfo};
@@ -140,7 +140,7 @@ pub fn make_font_infos<'a, T>(bytes: &[u8], font_sizes: &[f32], char_codes: T, n
     let font_settings = fontdue::FontSettings {
         collection_index: 0,
         scale: *font_sizes.iter().partial_max()
-            .map_or_else(|| Err("Received NaN font size"), |x| Ok(x))?,
+            .map_or_else(|| Err("Received NaN font size"), |x| Ok(x))?
     };
     let font = fontdue::Font::from_bytes(bytes, font_settings)?;
     let fonts: Vec<FontInfo> = font_sizes.iter().map(|font_size| {
@@ -173,28 +173,29 @@ pub fn make_font_infos<'a, T>(bytes: &[u8], font_sizes: &[f32], char_codes: T, n
         };
 
         // apparently it's in fractional pixels?
-        println!("What are units per em? {}", font.units_per_em());
-        let frac_pixels = 1.0 / font.units_per_em();
+        let frac_pixels = 1.0;
         let font_size = *font_size;
  
         // create an image and isolate important metrics
         let font_info = FontInfo {
             image_buffer: apply_packing(&glyphs, &packing),
             image_size: Vector2::new(packing.width(), packing.height()),
-            char_data: glyphs.iter().map(|glyph| (
+            char_data: glyphs.iter().map(|glyph| {
+                println!("glyph {} w: {} h: {} p: {} adv: {} advh: {} lsb: {} tsb: {}", glyph.char_code, glyph.width, glyph.height, packing.width(), glyph.metrics.advance_width, glyph.metrics.advance_height, glyph.metrics.bounds.xmin, glyph.metrics.bounds.ymin + glyph.metrics.bounds.height);
+                (
                 glyph.char_code,
                 GlyphMetrics {
                     glyph_pos: {
                         let v = packing.get_glyph_pos(glyph.char_code).unwrap();
                         Vector2::new(v.x as f32, v.y as f32)
                     },
-                    glyph_size: Vector2::new(glyph.width as f32 / packing.width() as f32,
-                                             glyph.height as f32 / packing.height() as f32),
+                    glyph_size: Vector2::new(glyph.width as f32,
+                                             glyph.height as f32),
                     advance: glyph.metrics.advance_width * frac_pixels,
                     lsb: glyph.metrics.bounds.xmin as f32 * frac_pixels,
                     tsb: (glyph.metrics.bounds.ymin + glyph.metrics.bounds.height) as f32 * frac_pixels
                 }
-            )).collect(),
+            )}).collect(),
             font_size,
             not_found_char,
             height: font_size * frac_pixels,
@@ -233,6 +234,7 @@ pub struct Font {
     font_size: f32,
     not_found_char: Option<char>,
     height: f32,
+    image_size: cgmath::Vector2<f32>,
 }
 
 impl Font {
@@ -284,6 +286,7 @@ impl Font {
             font_size: font_info.font_size,
             not_found_char: font_info.not_found_char,
             height: font_info.height,
+            image_size: cgmath::Vector2::new(font_info.image_size.x as f32, font_info.image_size.y as f32),
         })
     }
 
@@ -552,7 +555,7 @@ impl FontRenderer {
                     entry_point: "fs_main",
                     targets: &[Some(wgpu::ColorTargetState {
                         format: config.format,
-                        blend: Some(wgpu::BlendState::REPLACE),
+                        blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
                 }),
@@ -560,7 +563,7 @@ impl FontRenderer {
                     topology: wgpu::PrimitiveTopology::TriangleList,
                     strip_index_format: None,
                     front_face: wgpu::FrontFace::Ccw,
-                    cull_mode: Some(wgpu::Face::Back),
+                    cull_mode: None, // Some(wgpu::Face::Back),
                     polygon_mode: wgpu::PolygonMode::Fill,
                     unclipped_depth: false,
                     conservative: false,
@@ -595,15 +598,16 @@ impl FontRenderer {
         self.current_buffer_pos.set(0);
     }
 
-    pub fn render<'a>(&'a self, font: &Font, queue: &wgpu::Queue, render_pass: &mut wgpu::RenderPass<'a>, instances: &Vec<(String, cgmath::Matrix4<f32>, cgmath::Vector4<f32>)>) -> Result<(), wgpu::SurfaceError> {
+    pub fn render<'a>(&'a self, font: &Font, queue: &wgpu::Queue, render_pass: &mut wgpu::RenderPass<'a>, camera: &Camera, instances: &Vec<(String, cgmath::Vector2<f32>, cgmath::Vector4<f32>)>) -> Result<(), wgpu::SurfaceError> {
             
         // retrieve bind group for the given texture
         let diffuse_bind_group = self.texture_bind_groups.get_texture_bind_group(&font.sprite_texture)
         .expect("Could not find texture bind group, did you forget to register your font?");
+        let proj = camera.proj();
 
         // split instances apart and reformat them
-        let instances_calc = instances.iter().flat_map(|(text, matrix, color)| {
-            let base = matrix;
+        let instances_calc = instances.iter().flat_map(|(text, pos, color)| {
+            let base = proj * Matrix4::from_translation(cgmath::Vector3::new(pos.x, pos.y, 0.0));
             let mut line_width = 0.0;
             let line_height = font.line_height();
             let mut trans: Matrix4<f32> = Matrix4::identity();
@@ -620,16 +624,25 @@ impl FontRenderer {
                 trans = trans * Matrix4::from_translation(
                     cgmath::Vector3::new(metrics.lsb, -metrics.tsb, 0.0)
                 );
-                let matrix = base * trans;
+                let matrix = base * trans * Matrix4::from_nonuniform_scale(
+                    metrics.glyph_size.x, metrics.glyph_size.y, 1.0
+                );
                 trans = trans * Matrix4::from_translation(
                     cgmath::Vector3::new(-metrics.lsb + metrics.advance, metrics.tsb, 0.0)
                 );
                 line_width += metrics.advance;
                 Some(Instance {
+                    // matrix: camera.proj() *
+                    //     Matrix4::from_translation(cgmath::Vector3 { x: 100.0, y: 100.0, z: 0.0 }) *
+                    //     Matrix4::from_scale(100.0),
                     matrix,
                     color: *color,
-                    texture_pos: metrics.glyph_pos,
-                    texture_scale: metrics.glyph_size,
+                    texture_pos: cgmath::Vector2::new(
+                        metrics.glyph_pos.x / font.image_size.x,
+                        metrics.glyph_pos.y / font.image_size.y),
+                    texture_scale: cgmath::Vector2::new(
+                        metrics.glyph_size.x / font.image_size.x,
+                        metrics.glyph_size.y / font.image_size.y)
                 })
             })
             .map(|instance| instance.to_raw())
@@ -644,6 +657,17 @@ impl FontRenderer {
             (current_buffer_pos as usize * std::mem::size_of::<InstanceRaw>()) as u64,
             bytemuck::cast_slice(&instances_calc));
         self.current_buffer_pos.set(current_buffer_pos + instances_calc.len() as u32);
+        // let instances_calc = vec![
+        //     Instance {
+        //         matrix: cgmath::Matrix4::identity(),
+        //         color: cgmath::Vector4::new(1.0, 1.0, 1.0, 1.0),
+        //         texture_pos: cgmath::Vector2::new(0.0, 0.0),
+        //         texture_scale: cgmath::Vector2::new(1.0, 1.0),
+        //     }.to_raw(),
+        // ];
+        // queue.write_buffer(
+        //     &self.instance_buffer,
+        //     0, bytemuck::cast_slice(&instances_calc[0..1]));
 
         // bind everything
         render_pass.set_pipeline(&self.render_pipeline);
@@ -653,6 +677,7 @@ impl FontRenderer {
 
         render_pass.draw(0..self.square_num_vertices,
                          current_buffer_pos..(current_buffer_pos + instances_calc.len() as u32));
+        // render_pass.draw(0..6, 0..1);
 
         Ok(())
     }

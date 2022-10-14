@@ -37,8 +37,8 @@ impl Camera {
         )
     }
 
-    pub fn ortho(&self) -> cgmath::Matrix4<f32> {
-        let proj = cgmath::ortho(0.0, self.window_size.x as f32, self.window_size.y as f32, 0.0, 0.0, 1.0);
+    pub fn proj(&self) -> cgmath::Matrix4<f32> {
+        let proj = OPENGL_TO_WGPU_MATRIX * cgmath::ortho(0.0, self.window_size.x as f32, self.window_size.y as f32, 0.0, 0.0, 1.0);
         proj
     }
 
@@ -47,7 +47,7 @@ impl Camera {
         let camera_center_offset = self.camera_center_offset();
         // let proj = cgmath::Matrix4::identity();
         // let view = cgmath::Matrix4::identity();
-        let proj = self.ortho();
+        let proj = self.proj();
         let view = 
             cgmath::Matrix4::from_translation(cgmath::Vector3::new(camera_center_offset.x, camera_center_offset.y, 0.0)) *
             cgmath::Matrix4::from_scale(zoom_factor) *
