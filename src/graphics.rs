@@ -1,7 +1,8 @@
 use crate::{texture::Texture, camera::Camera, world::World};
-use self::textured::{TextureRenderer, Instance};
+use self::{textured::{TextureRenderer, Instance}, text::{Font, FontRenderer, make_font_infos, default_characters}};
 
 pub mod textured;
+pub mod text;
 
 pub struct RenderPrereq<'a> {
     pub device: &'a mut wgpu::Device,
@@ -14,6 +15,8 @@ pub struct RenderEngine {
     pub texture_renderer: TextureRenderer,
     pub diffuse_texture: Texture,
     pub solid_texture: Texture,
+    font: Font,
+    font_renderer: FontRenderer,
 }
 
 impl RenderEngine {
@@ -22,15 +25,22 @@ impl RenderEngine {
         let diffuse_bytes = include_bytes!("happy-tree.png");
         let diffuse_image = image::load_from_memory(diffuse_bytes).unwrap();
         let diffuse_texture =
-            Texture::from_image(&device, &queue, &diffuse_image, "happy-tree").unwrap();
+            Texture::from_image(&device, &queue, &diffuse_image, "happy-tree", wgpu::FilterMode::Linear).unwrap();
         let solid_texture =
             Texture::blank_texture(&device, &queue, "blank").unwrap();
         let mut texture_renderer = TextureRenderer::init(device, queue, config);
         texture_renderer.add_texture(device, [&diffuse_texture, &solid_texture].into_iter());
+        let font_info = make_font_infos(
+            include_bytes!("arial.ttf"), &[16.0], default_characters().iter(), None, "arial".to_string()).unwrap();
+        let font = Font::make_from_info(device, queue, &font_info[0], wgpu::FilterMode::Linear).unwrap();
+        let mut font_renderer = FontRenderer::new(device, queue, config).unwrap();
+        font_renderer.register_font(device, &font);
         Self {
             texture_renderer,
             diffuse_texture,
             solid_texture,
+            font,
+            font_renderer,
         }
     }
 
@@ -65,6 +75,7 @@ impl RenderEngine {
                 depth_stencil_attachment: None,
             });
             self.texture_renderer.reset();
+            self.font_renderer.reset();
 
             // render instructions go here
             let instances = world.objects.iter().map(|obj| {
@@ -74,20 +85,27 @@ impl RenderEngine {
                     color: obj.color,
                 }
             }).collect::<Vec<_>>();
-            self.texture_renderer.render(render.queue, &mut render_pass, render.camera,
-                vec![
-                   (
-                       instances[instances.len()/2..].to_vec(),
-                       &self.diffuse_texture
-                   ),
-                ])?;
-            self.texture_renderer.render(render.queue, &mut render_pass, render.camera,
-                vec![
-                   (
-                       instances[0..instances.len()/2].to_vec(),
-                       &self.solid_texture
-                   ),
-                ])?;
+            // self.texture_renderer.render(render.queue, &mut render_pass, render.camera,
+            //     vec![
+            //        (
+            //            instances[instances.len()/2..].to_vec(),
+            //            &self.diffuse_texture
+            //        ),
+            //     ])?;
+            // self.texture_renderer.render(render.queue, &mut render_pass, render.camera,
+            //     vec![
+            //        (
+            //            instances[0..instances.len()/2].to_vec(),
+            //            &self.solid_texture
+            //        ),
+            //     ])?;
+            self.font_renderer.render(&self.font, render.queue, &mut render_pass, &vec![
+                (format!("Hello World!"),
+                render.camera.ortho() * cgmath::Matrix4::from_translation(
+                    cgmath::Vector3::new(100.0, 100.0, 0.0)
+                ),
+                cgmath::Vector4::new(1.0, 1.0, 1.0, 1.0))
+            ])?;
             // when we add font rendering, time to fight with the borrow checker, probably
         }
 

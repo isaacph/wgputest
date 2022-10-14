@@ -18,26 +18,30 @@ impl Texture {
                 }
             }
         }
-        Self::from_image(device, queue, &image, id)
+        Self::from_image(device, queue, &image, id, wgpu::FilterMode::Nearest)
     }
 
     pub fn from_image_bytes(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         bytes: &[u8],
-        id: &str
+        id: &str,
+        filter: wgpu::FilterMode
     ) -> Result<Self> {
         let img = image::load_from_memory(bytes)?;
-        Self::from_image(device, queue, &img, id)
+        Self::from_image(device, queue, &img, id, filter)
     }
 
     pub fn from_bytes(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        diffuse_rgba: &[u8],
+        diffuse: &[u8],
         dimensions: (u32, u32),
         id: &str,
-        format: wgpu::TextureFormat
+        format: wgpu::TextureFormat,
+        bytes_per_pixel: u32,
+        dimension: wgpu::TextureDimension,
+        mag_filter: wgpu::FilterMode,
     ) -> Result<Self> {
         let texture_size = wgpu::Extent3d {
             width: dimensions.0,
@@ -52,7 +56,7 @@ impl Texture {
                 size: texture_size,
                 mip_level_count: 1,
                 sample_count: 1,
-                dimension: wgpu::TextureDimension::D2,
+                dimension,
                 // reflecting that most images are stored as sRGB
                 format,
                 // TEXTURE_BINDING tells wgpu that we want to use this texture in shaders
@@ -70,11 +74,11 @@ impl Texture {
                 aspect: wgpu::TextureAspect::All,
             },
             // the actual pixel data
-            &diffuse_rgba,
+            &diffuse,
             // The layout of the texture
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: std::num::NonZeroU32::new(4 * dimensions.0),
+                bytes_per_row: std::num::NonZeroU32::new(bytes_per_pixel * dimensions.0),
                 rows_per_image: std::num::NonZeroU32::new(dimensions.1),
             },
             texture_size
@@ -85,7 +89,7 @@ impl Texture {
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
+            mag_filter,
             min_filter: wgpu::FilterMode::Nearest,
             mipmap_filter: wgpu::FilterMode::Nearest,
             ..Default::default()
@@ -103,11 +107,22 @@ impl Texture {
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         img: &image::DynamicImage,
-        id: &str
+        id: &str,
+        filter: wgpu::FilterMode,
     ) -> Result<Self> {
         let diffuse_rgba = img.to_rgba8();
         let dimensions = img.dimensions();
 
-        Self::from_bytes(device, queue, &diffuse_rgba, dimensions, id, wgpu::TextureFormat::Rgba8UnormSrgb)
+        Self::from_bytes(
+            device,
+            queue,
+            &diffuse_rgba,
+            dimensions,
+            id,
+            wgpu::TextureFormat::R8Unorm,
+            4,
+            wgpu::TextureDimension::D2,
+            filter
+        )
     }
 }

@@ -16,7 +16,8 @@ anyhow = "1.0"
 cgmath = "0.18"
 instant = "0.1"
 # freetype-sys = { version = "0.15.0" }
-rusttype = "0.9.2"
+fontdue = "0.7.2"
+itertools = "0.10.5"
 
 # webassembly dependency
 cfg-if = "1"

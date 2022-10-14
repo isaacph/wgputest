@@ -445,7 +445,7 @@ impl TextureRenderer {
 
             // retrieve bind group for the given texture
             let diffuse_bind_group = self.texture_bind_groups.get_texture_bind_group(texture)
-                .expect("Could not find texture bind group (should be impossible");
+                .expect("Could not find texture bind group, did you forget to register your texture?");
 
             // set up for drawing, shared state across instances
             render_pass.set_pipeline(&self.render_pipeline);
