@@ -1,6 +1,6 @@
 use std::{collections::HashMap, cell::Cell};
 use crate::{util::PartialOrdMinMax, camera::Camera};
-use crate::texture::Texture;
+use crate::graphics::texture::Texture;
 
 use self::packing::{GlyphPacking, GlyphInfo};
 use cgmath::{Matrix4, Vector2, SquareMatrix};
@@ -93,9 +93,7 @@ pub fn make_font_infos<'a, T>(bytes: &[u8], font_sizes: &[f32], char_codes: T, n
         let font_info = FontInfo {
             image_buffer: apply_packing(&glyphs, &packing),
             image_size: Vector2::new(packing.width(), packing.height()),
-            char_data: glyphs.iter().map(|glyph| {
-                println!("glyph {} w: {} h: {} p: {} adv: {} advh: {} lsb: {} tsb: {}", glyph.char_code, glyph.width, glyph.height, packing.width(), glyph.metrics.advance_width, glyph.metrics.advance_height, glyph.metrics.bounds.xmin, glyph.metrics.bounds.ymin + glyph.metrics.bounds.height);
-                (
+            char_data: glyphs.iter().map(|glyph| (
                 glyph.char_code,
                 GlyphMetrics {
                     glyph_pos: {
@@ -108,7 +106,7 @@ pub fn make_font_infos<'a, T>(bytes: &[u8], font_sizes: &[f32], char_codes: T, n
                     lsb: glyph.metrics.bounds.xmin as f32 * frac_pixels,
                     tsb: (glyph.metrics.bounds.ymin + glyph.metrics.bounds.height) as f32 * frac_pixels
                 }
-            )}).collect(),
+            )).collect(),
             font_size,
             not_found_char,
             height: font_size * frac_pixels,

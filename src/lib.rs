@@ -13,7 +13,6 @@ use wasm_bindgen::prelude::*;
 
 use world::World;
 
-mod texture;
 mod camera;
 mod graphics;
 mod world;

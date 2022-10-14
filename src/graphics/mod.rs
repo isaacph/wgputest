@@ -1,8 +1,9 @@
-use crate::{texture::Texture, camera::Camera, world::World};
+use crate::{graphics::texture::Texture, camera::Camera, world::World};
 use self::{textured::{TextureRenderer, Instance}, text::{Font, FontRenderer, make_font_infos, default_characters}};
 
 pub mod textured;
 pub mod text;
+pub mod texture;
 
 pub struct RenderPrereq<'a> {
     pub device: &'a mut wgpu::Device,
