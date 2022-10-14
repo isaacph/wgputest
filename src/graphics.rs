@@ -92,11 +92,15 @@ impl RenderEngine {
                        &self.diffuse_texture
                    ),
                 ])?;
+            let text = format!("I should be behind stuff");
             self.font_renderer.render(&self.font, render.queue, &mut render_pass, &render.camera,
                   &vec![
-                (format!("I should be behind stuff"),
+                (text.clone(),
                 cgmath::Vector2::new(200.0, 400.0),
-                cgmath::Vector4::new(1.0, 0.5, 1.0, 1.0))
+                cgmath::Vector4::new(1.0, 0.5, 1.0, 1.0)),
+                ("I am right of something".to_string(),
+                cgmath::Vector2::new(200.0 + self.font.text_width(&text), 400.0),
+                cgmath::Vector4::new(1.0, 0.0, 0.0, 1.0))
             ])?;
             self.texture_renderer.render(render.queue, &mut render_pass, render.camera,
                 vec![
@@ -105,6 +109,10 @@ impl RenderEngine {
                        &self.solid_texture
                    ),
                 ])?;
+            let long_text = (0..30).map(|_| format!("I fit on the screen horizontally "))
+                .collect::<Vec<_>>().join("");
+            let long_text_split = self.font.split_lines(long_text.as_str(), Some(render.camera.window_size.x as f32));
+            let long_text_join = long_text_split.join("\n");
             self.font_renderer.render(&self.font, render.queue, &mut render_pass, &render.camera,
                   &vec![
                 (format!("Hello World!"),
@@ -112,7 +120,10 @@ impl RenderEngine {
                 cgmath::Vector4::new(1.0, 1.0, 1.0, 1.0)),
                 (format!("What's up? We got instancing,\nnew lines, colors, etc"),
                 cgmath::Vector2::new(80.0, 200.0),
-                cgmath::Vector4::new(1.0, 0.5, 0.0, 1.0))
+                cgmath::Vector4::new(1.0, 0.5, 0.0, 1.0)),
+                (long_text_join,
+                cgmath::Vector2::new(0.0, 48.0),
+                cgmath::Vector4::new(0.0, 1.0, 0.0, 0.1))
             ])?;
             // when we add font rendering, time to fight with the borrow checker, probably
         }
