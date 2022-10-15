@@ -89,21 +89,21 @@ impl CameraController {
     }
 
     pub fn process_events(&mut self, event: &WindowEvent) -> bool {
-        match event {
-            WindowEvent::KeyboardInput {
-                input: KeyboardInput {
-                    state,
-                    virtual_keycode: Some(key), ..
-                }, ..
-            } if self.relevant_inputs.contains(&key) => {
-                match state {
-                    ElementState::Pressed => self.inputs.insert(*key),
-                    ElementState::Released => self.inputs.remove(key),
-                };
-                true
-            },
-            _ => false,
-        }
+        // match event {
+        //     WindowEvent::KeyboardInput {
+        //         input: KeyboardInput {
+        //             state,
+        //             virtual_keycode: Some(key), ..
+        //         }, ..
+        //     } if self.relevant_inputs.contains(&key) => {
+        //         match state {
+        //             ElementState::Pressed => self.inputs.insert(*key),
+        //             ElementState::Released => self.inputs.remove(key),
+        //         };
+        //         true
+        //     },
+        //     _ => false,
+        // }
     }
 
     pub fn update_camera(&self, delta_time: f32, camera: &mut Camera) {

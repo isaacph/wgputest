@@ -1,5 +1,6 @@
 use graphics::RenderEngine;
 use instant::Instant;
+use std::collections::HashSet;
 
 use winit::{
     event::*,
@@ -13,6 +14,7 @@ use wasm_bindgen::prelude::*;
 
 use world::World;
 
+mod bounding_box;
 mod camera;
 mod graphics;
 mod world;
@@ -116,6 +118,14 @@ pub struct State {
     last_frame: Instant,
 
     pub world: World,
+    pub input_state: InputState,
+    pub keyboard_dir: cgmath::Vector2<f32>,
+}
+
+pub struct InputState {
+    pub key_down: HashSet<VirtualKeyCode>,
+    pub key_pos_edge: HashSet<VirtualKeyCode>,
+    pub key_neg_edge: HashSet<VirtualKeyCode>,
 }
 
 impl State {
@@ -188,6 +198,12 @@ impl State {
             camera_controller,
             last_frame: Instant::now(),
             world: World::new(),
+            keyboard_dir: cgmath::Vector2 { x: 0.0, y: 0.0 },
+            input_state: InputState {
+                key_down: HashSet::new(),
+                key_pos_edge: HashSet::new(),
+                key_neg_edge: HashSet::new(),
+            },
         }
     }
 
@@ -202,9 +218,31 @@ impl State {
     }
 
     fn input(&mut self, event: &WindowEvent) -> bool {
+        let relevant_inputs = {
+            use VirtualKeyCode::*;
+            vec![A, S, D, W, Space, LShift]
+        };
         if !self.camera_controller.process_events(event) {
             match *event {
-                _ => false,
+                KeyboardInput {
+                    state,
+                    virtual_keycode:
+                    Some(key),
+                    ..
+                } if relevant_inputs.contains(&key) => {
+                    match state {
+                        ElementState::Pressed => {
+                            self.input_state.key_down.insert(key);
+                            self.input_state.key_pos_edge.insert(key);
+                        },
+                        ElementState::Pressed => {
+                            self.input_state.key_down.remove(&key);
+                            self.input_state.key_neg_edgensert(key);
+                        },
+                        _ => ()
+                    };
+                    true
+                }
             }
         } else {
             true
@@ -217,10 +255,14 @@ impl State {
         let delta_time = ((frame - self.last_frame).as_nanos() as f64 / 1000000000.0) as f32;
         self.last_frame = frame;
 
-        self.world.update(delta_time);
+        self.world.update(delta_time, &self.input_state);
 
         // camera update
         self.camera_controller.update_camera(delta_time, &mut self.camera);
+        
+        // clear inputs
+        self.input_state.key_pos_edge.clear();
+        self.input_state.key_neg_edge.clear();
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

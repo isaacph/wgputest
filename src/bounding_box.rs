@@ -5,7 +5,7 @@
 use cgmath::{Vector2};
 
 pub struct BoundingBox {
-    pub center: cgmath::Vector2<f32>,
+    pub center: Vector2<f32>,
     pub width: f32,
     pub height: f32,
 }
@@ -15,18 +15,16 @@ impl BoundingBox {
 
     const RESOLVE_OFFSET: f32 = 0.005;
 
-    const NO_INTERSECTION: Vec<cgmath::Vector2<f32> > =  vec![
-        cgmath::Vector2::new(f32::MIN, f32::MIN),
-        cgmath::Vector2::new(f32::MAX, f32::MIN),
-        cgmath::Vector2::new(f32::MIN, f32::MAX),
-        cgmath::Vector2::new(f32::MAX, f32::MAX)
+    const NO_INTERSECTION: Vec<f32> =  vec![
+        f32::MIN,
+        f32::MAX,
+        f32::MIN,
+        f32::MAX,
     ];
 
-
-    pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
+    pub fn new(center: Vector2<f32>, width: f32, height: f32) -> Self {
         Self {
-            x,
-            y,
+            center,
             width,
             height,
         }
@@ -34,54 +32,53 @@ impl BoundingBox {
 
     pub fn new_default() -> Self {
         Self {
-            x: 0,
-            y: 0,
-            width: 1,
-            height: 1,
+            center: Vector2::new(0.0, 0.0),
+            width: 1.0,
+            height: 1.0,
         }
     }
 
-    pub fn add(&self, offset : cgmath::Vector2<f32>) {
-        center.add(offset);
+    pub fn add(&mut self, offset : Vector2<f32>) {
+        self.center += offset;
     }
 
-    pub fn get_scale() -> cgmath::Vector2<f32> {
-        return cgmath::Vector2<f32>(width, height);
+    pub fn get_scale(&self) -> Vector2<f32> {
+        return Vector2::new(self.width, self.height);
     }
 
-    pub fn points() -> Vec<cgmath::Vector2<f32> > {
-        let mut point_set = Vec::new();
+    pub fn points(&self) -> Vec<Vector2<f32> > {
+        let mut point_set: Vec<Vector2<f32> > = Vec::new();
         
-        x_current = center.x - width / 2;
-        while (x_current != center.x + width / 2) {
-            y_current = center.y - height / 2;
-            while (y_current != center.y + height / 2) {
-                point_set.push(cgmath::Vector2<f32>(x_current, y_current));
-                y_current = min(y_current + INTERSECT_STEP_SIZE, height);
+        let x_current = self.center.x - self.width / 2.0;
+        while x_current != self.center.x + self.width / 2.0 {
+            let y_current = self.center.y - self.height / 2.0;
+            while y_current != self.center.y + self.height / 2.0 {
+                point_set.push(Vector2::new(x_current, y_current));
+                y_current = f32::min(y_current + BoundingBox::INTERSECT_STEP_SIZE, self.height);
             }
-            x_current = min(x_current + INTERSECT_STEP_SIZE, width);
+            x_current = f32::min(x_current + BoundingBox::INTERSECT_STEP_SIZE, self.width);
         }
 
         return point_set;
     }
  
-    pub fn intersect(&a : BoundingBox, &b : BoundingBox) -> Vec<f32> {
+    pub fn get_intersection(a : &BoundingBox, b : &BoundingBox) -> Vec<f32> {
         // this is the GJK algorithm. Minkowski difference is the set of pairwise differences
         // between points in a and points in b.
         // a and b intersect iff origin in Minkowski difference, which we check on line 60
 
         // return the corners of the intersection rectangle
-        x_min = f32::MIN;
-        x_max = f32::MAX; 
-        y_min = f32::MIN; 
-        y_max = f32::MAX;
+        let x_min = f32::MIN;
+        let x_max = f32::MAX; 
+        let y_min = f32::MIN; 
+        let y_max = f32::MAX;
         for a_point in a.points() {
             for b_point in b.points() {
                 if a_point == b_point {
-                    x_min = min(x_min, b_point.x);
-                    x_max = max(x_max, b_point.x);
-                    y_min = min(y_min, b_point.y);
-                    y_max = max(y_max, b_point.y);
+                    x_min = f32::min(x_min, b_point.x);
+                    x_max = f32::max(x_max, b_point.x);
+                    y_min = f32::min(y_min, b_point.y);
+                    y_max = f32::max(y_max, b_point.y);
                 }
             }
         }
@@ -93,31 +90,40 @@ impl BoundingBox {
         ];
     }
 
-
-    pub fn resolve_options(&pusher: BoundingBox, &mover: BoundingBox) -> Vec<cgmath::Vector2<f32> > {
-        options = Vec::new();
-        intersection = intersect(pusher, mover);
+    // returns empty vector if no intersection detected.
+    pub fn resolve_options(&self, mover: &BoundingBox) -> Vec<Vector2<f32> > {
+        let options = Vec::new();
+        let intersection = BoundingBox::get_intersection(self, mover);
         
-        if intersection != NO_INTERSECTION {
+        if  intersection != BoundingBox::NO_INTERSECTION {
             options = vec![
-                cgmath::Vector2::new(x_max - x_min + RESOLVE_OFFSET, 0),
-                cgmath::Vector2::new(-(x_max - x_min + RESOLVE_OFFSET), 0),
-                cgmath::Vector2::new(y_max - y_min + RESOLVE_OFFSET, 0),
-                cgmath::Vector2::new(-(y_max - y_min + RESOLVE_OFFSET), 0),
+                Vector2::new(intersection[1] - intersection[0] + BoundingBox::RESOLVE_OFFSET, 0.0),
+                Vector2::new(-(intersection[1] - intersection[0] + BoundingBox::RESOLVE_OFFSET), 0.0),
+                Vector2::new(0.0, intersection[3] - intersection[2] + BoundingBox::RESOLVE_OFFSET),
+                Vector2::new(0.0, -(intersection[3] - intersection[2] + BoundingBox::RESOLVE_OFFSET)),
             ]
         }
+
+        return options;
     }
 
-    pub fn resolve(&pusher: BoundingBox, &mover: BoundingBox) -> Vector2<f32> {
-        // TODO: make this work using GLK
+    // really shitty implementation
+    // TODO: can be way faster
+    pub fn does_intersect(&self, other: &BoundingBox) -> bool {
+        BoundingBox::get_intersection(self, other) != BoundingBox::NO_INTERSECTION
     }
 
-    pub fn resolve_x(&pusher: BoundingBox, &mover: BoundingBox) -> Vector2<f32> {
-        // TODO: make this work using GLK
-    }
+    // dumb question but do we need these?
+    // pub fn resolve(pusher: &BoundingBox, mover: &BoundingBox) -> Vector2<f32> {
+    //     // TODO: make this work using GLK
+    // }
 
-    pub fn resolve_y(&pusher: BoundingBox, &mover: BoundingBox) -> Vector2<f32> {
-        // TODO: make this work using GLK
-    }
+    // pub fn resolve_x(pusher: &BoundingBox, mover: &BoundingBox) -> Vector2<f32> {
+    //     // TODO: make this work using GLK
+    // }
+
+    // pub fn resolve_y(pusher: &BoundingBox, mover: &BoundingBox) -> Vector2<f32> {
+    //     // TODO: make this work using GLK
+    // }
 }
 
