@@ -16,13 +16,6 @@ impl BoundingBox {
 
     const RESOLVE_OFFSET: f32 = 0.00005;
 
-    const NO_INTERSECTION: &[f32] = &[
-        f32::MIN,
-        f32::MAX,
-        f32::MIN,
-        f32::MAX,
-    ];
-
     pub fn new(center: Vector2<f32>, width: f32, height: f32) -> Self {
         Self {
             center,
@@ -37,6 +30,22 @@ impl BoundingBox {
             width: 1.0,
             height: 1.0,
         }
+    }
+
+    pub fn get_x_max(&self) -> f32 {
+        self.center.x + self.width / 2.0
+    }
+
+    pub fn get_x_min(&self) -> f32 {
+        self.center.x - self.width / 2.0
+    }
+
+    pub fn get_y_max(&self) -> f32 {
+        self.center.y + self.height / 2.0
+    }
+
+    pub fn get_y_min(&self) -> f32 {
+        self.center.y - self.height / 2.0
     }
 
     pub fn add(&mut self, offset : Vector2<f32>) {
@@ -63,104 +72,81 @@ impl BoundingBox {
         return point_set;
     }
  
-    pub fn get_intersection(a : &BoundingBox, b : &BoundingBox) -> Vector4<f32> {
-        // this is the GJK algorithm. Minkowski difference is the set of pairwise differences
-        // between points in a and points in b.
-        // a and b intersect iff origin in Minkowski difference, which we check on line 60
-
-        let get_x_intersection = |a : &BoundingBox, b : &BoundingBox| -> Vector2<f32> {
-            let mut x_min = f32::MIN;
-            let mut x_max = f32::MAX; 
-            if a.center.x - a.width / 2.0 < b.center.x + b.width / 2.0 && b.center.x - b.width / 2.0 < a.center.x - a.width / 2.0 {
-                x_min = a.center.x - a.width / 2.0;
-                x_max = b.center.x + b.width / 2.0;
+    pub fn calculate_resolve_options(&self, b : &BoundingBox) -> Vec<Option<Vector2<f32> > > {
+        let get_x_resolves = |a : &BoundingBox, b : &BoundingBox| -> Vector2<Option<Vector2<f32> > > {
+            let mut left_resolve: Option<Vector2<f32> > = None;
+            let mut right_resolve: Option<Vector2<f32> > = None; 
+            // the resolution goes to the right: intersection is on the left, and the added position is rightward facing to account for that
+            if a.center.x - a.width / 2.0 < b.center.x + b.width / 2.0 
+                && b.center.x - b.width / 2.0 < a.center.x - a.width / 2.0 {
+                left_resolve = Some(Vector2::new(
+                    a.center.x + (b.center.x + b.width / 2.0 - (a.center.x - a.width / 2.0)), 
+                    a.center.y)
+                );
             }
-            else if b.center.x - b.width / 2.0 < a.center.x + a.width / 2.0 && a.center.x - a.width / 2.0 < b.center.x - b.width / 2.0 {
-                x_min = b.center.x - b.width / 2.0;
-                x_max = a.center.x + a.width / 2.0;
-            }
-            else if a.center.x - a.width / 2.0 < b.center.x - b.width / 2.0 && b.center.x + b.width / 2.0 < a.center.x + a.width / 2.0 {
-                x_min = b.center.x - b.width / 2.0;
-                x_max = b.center.x + b.width / 2.0;
-            }
-            else if b.center.x - b.width / 2.0 < a.center.x - a.width / 2.0 && a.center.x + a.width / 2.0 < b.center.x + b.width / 2.0 {
-                x_min = a.center.x - a.width / 2.0;
-                x_max = a.center.x + a.width / 2.0;
+            else if b.center.x - b.width / 2.0 < a.center.x + a.width / 2.0 
+                && a.center.x - a.width / 2.0 < b.center.x - b.width / 2.0 {
+                right_resolve = Some(Vector2::new(
+                    a.center.x + (a.center.x + a.width / 2.0 - (b.center.x - b.width / 2.0)), 
+                    a.center.y)
+                );
             }
 
-            Vector2::new(x_min, x_max)
+            Vector2::new(left_resolve, right_resolve)
         };
 
-        let get_y_intersection = |a : &BoundingBox, b : &BoundingBox| -> Vector2<f32> {
-            let mut y_min = f32::MIN;
-            let mut y_max = f32::MAX; 
-            if a.center.y - a.height / 2.0 < b.center.y + b.height / 2.0 && b.center.y - b.height / 2.0 < a.center.y - a.height / 2.0 {
-                y_min = a.center.y - a.height / 2.0;
-                y_max = b.center.y + b.height / 2.0;
+        let get_y_resolves = |a : &BoundingBox, b : &BoundingBox| -> Vector2<Option<Vector2<f32> > > {
+            let mut down_resolve: Option<Vector2<f32> > = None;
+            let mut up_resolve: Option<Vector2<f32> > = None;  
+            if a.center.y - a.height / 2.0 < b.center.y + b.height / 2.0 
+                && b.center.y - b.height / 2.0 < a.center.y - a.height / 2.0 {
+                down_resolve = Some(Vector2::new(
+                    a.center.y,
+                    a.center.y + (b.center.y + b.height / 2.0 - (a.center.y - a.height / 2.0)), 
+                ));
             }
-            else if b.center.y - b.height / 2.0 < a.center.y + a.height / 2.0 && a.center.y - a.height / 2.0 < b.center.y - b.height / 2.0 {
-                y_min = b.center.y - b.height / 2.0;
-                y_max = a.center.y + a.height / 2.0;
-            }
-            else if a.center.y - a.height / 2.0 < b.center.y - b.height / 2.0 && b.center.y + b.height / 2.0 < a.center.y + a.height / 2.0 {
-                y_min = b.center.y - b.height / 2.0;
-                y_max = b.center.y + b.height / 2.0;
-            }
-            else if b.center.y - b.height / 2.0 < a.center.y - a.height / 2.0 && a.center.y + a.height / 2.0 < b.center.y + b.height / 2.0 {
-                y_min = a.center.y - a.height / 2.0;
-                y_max = a.center.y + a.height / 2.0;
+            else if b.center.y - b.height / 2.0 < a.center.y + a.height / 2.0 
+                && a.center.y - a.height / 2.0 < b.center.y - b.height / 2.0 {
+                up_resolve = Some(Vector2::new(
+                    a.center.y + (a.center.y + a.height / 2.0 - (b.center.y - b.height / 2.0)), 
+                    a.center.y)
+                );
             }
 
-            Vector2::new(y_min, y_max)
+            Vector2::new(down_resolve, up_resolve)
         };
 
-        // return the corners of the intersection rectangle
-        // let mut x_min = f32::MIN;
-        // let mut x_max = f32::MAX; 
-        // let mut y_min = f32::MIN; 
-        // let mut y_max = f32::MAX;
-        // for a_point in a.points() {
-        //     for b_point in b.points() {
-        //         if a_point == b_point {
-        //             x_min = f32::min(x_min, b_point.x);
-        //             x_max = f32::max(x_max, b_point.x);
-        //             y_min = f32::min(y_min, b_point.y);
-        //             y_max = f32::max(y_max, b_point.y);
-        //         }
-        //     }
-        // }
-        
-        // return vec![
-        //     x_min,
-        //     x_max,
-        //     y_min,
-        //     y_max,
-        // ];
-        let x_bounds = get_x_intersection(a, b);
-        let y_bounds = get_y_intersection(a, b);
+        let x_resolves = get_x_resolves(self, b);
+        let y_resolves = get_y_resolves(self, b);
 
-        return Vector4::new(x_bounds[0], x_bounds[1], y_bounds[0], y_bounds[1]);
+        return vec![x_resolves[0], x_resolves[1], y_resolves[0], y_resolves[1]];
     }
 
     // returns empty vector if no intersection detected.
     pub fn resolve_options(&self, mover: &BoundingBox) -> Vec<Vector2<f32> > {
         let mut options = Vec::new();
-        let intersection = BoundingBox::get_intersection(self, mover);
         
         if self.does_intersect(mover) {
-            options = vec![
-                Vector2::new(intersection[1] - intersection[0] + BoundingBox::RESOLVE_OFFSET, 0.0),
-                Vector2::new(-(intersection[1] - intersection[0] + BoundingBox::RESOLVE_OFFSET), 0.0),
-                Vector2::new(0.0, intersection[3] - intersection[2] + BoundingBox::RESOLVE_OFFSET),
-                Vector2::new(0.0, -(intersection[3] - intersection[2] + BoundingBox::RESOLVE_OFFSET)),
-            ]
-        }
+            let intersection = BoundingBox::calculate_resolve_options(self, mover);
+            options = intersection.into_iter().flatten().collect();
+            // for direction in intersection {
+            //     if direction != None {
 
+            //     }
+            // }
+
+
+            // options = vec![
+            //     Vector2::new(intersection[1] - intersection[0] + BoundingBox::RESOLVE_OFFSET, 0.0),
+            //     Vector2::new(-(intersection[1] - intersection[0] + BoundingBox::RESOLVE_OFFSET), 0.0),
+            //     Vector2::new(0.0, intersection[3] - intersection[2] + BoundingBox::RESOLVE_OFFSET),
+            //     Vector2::new(0.0, -(intersection[3] - intersection[2] + BoundingBox::RESOLVE_OFFSET)),
+            // ]
+
+        }
         return options;
     }
 
-    // really shitty implementation
-    // TODO: can be way faster
     pub fn does_intersect(&self, other: &BoundingBox) -> bool {
         // BoundingBox::get_intersection(self, other) != BoundingBox::NO_INTERSECTION
         let does_intersect_in_x = |a : &BoundingBox, b : &BoundingBox| -> bool {
