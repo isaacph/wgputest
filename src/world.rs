@@ -106,11 +106,11 @@ impl Physics for Player {
     }
 
     fn add_velocity(&mut self, delta_velocity: Vector2<f32>) {
-        self.data.velocity.add(delta_velocity);
+        self.data.velocity += delta_velocity;
     }
 
     fn add_position(&mut self, delta_position: Vector2<f32>) {
-        self.data.velocity.add(delta_position);
+        self.data.velocity += delta_position;
     }
 
     fn can_move(&self) -> bool {
@@ -160,11 +160,11 @@ impl Physics for Enemy {
     }
 
     fn add_velocity(&mut self, delta_velocity: Vector2<f32>) {
-        self.data.velocity.add(delta_velocity);
+        self.data.velocity += delta_velocity;
     }
 
     fn add_position(&mut self, delta_position: Vector2<f32>) {
-        self.data.velocity.add(delta_position);
+        self.data.velocity += delta_position;
     }
 
     fn can_move(&self) -> bool {
@@ -217,11 +217,11 @@ impl Physics for Projectile {
     }
 
     fn add_velocity(&mut self, delta_velocity: Vector2<f32>) {
-        self.data.velocity.add(delta_velocity);
+        self.data.velocity += delta_velocity;
     }
 
     fn add_position(&mut self, delta_position: Vector2<f32>) {
-        self.data.velocity.add(delta_position);
+        self.data.velocity += delta_position;
     }
 
     fn can_move(&self) -> bool {
@@ -272,11 +272,11 @@ impl Physics for Stage {
     }
 
     fn add_velocity(&mut self, delta_velocity: Vector2<f32>) {
-        self.data.velocity.add(delta_velocity);
+        self.data.velocity += delta_velocity;
     }
 
     fn add_position(&mut self, delta_position: Vector2<f32>) {
-        self.data.velocity.add(delta_position);
+        self.data.velocity += delta_position;
     }
 
     fn can_move(&self) -> bool {

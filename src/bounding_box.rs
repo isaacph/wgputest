@@ -2,7 +2,7 @@
 // mostly copying from existing impl at 
 // https://github.com/isaacph/GameJamNov2020/blob/master/src/main/java/Box.java
 
-use cgmath::{Vector2};
+use cgmath::{Vector2, Vector4};
 
 #[derive(Clone)]
 pub struct BoundingBox {
@@ -51,44 +51,95 @@ impl BoundingBox {
         let mut point_set: Vec<Vector2<f32> > = Vec::new();
         
         let mut x_current = self.center.x - self.width / 2.0;
-        while x_current != self.center.x + self.width / 2.0 {
+        while x_current < self.center.x + self.width / 2.0 {
             let mut y_current = self.center.y - self.height / 2.0;
-            while y_current != self.center.y + self.height / 2.0 {
+            while y_current < self.center.y + self.height / 2.0 {
                 point_set.push(Vector2::new(x_current, y_current));
-                y_current = f32::min(y_current + BoundingBox::INTERSECT_STEP_SIZE, self.height);
+                y_current = f32::min(y_current + BoundingBox::INTERSECT_STEP_SIZE, self.center.y + self.height / 2.0);
             }
-            x_current = f32::min(x_current + BoundingBox::INTERSECT_STEP_SIZE, self.width);
+            x_current = f32::min(x_current + BoundingBox::INTERSECT_STEP_SIZE, self.center.x + self.width / 2.0);
         }
 
         return point_set;
     }
  
-    pub fn get_intersection(a : &BoundingBox, b : &BoundingBox) -> Vec<f32> {
+    pub fn get_intersection(a : &BoundingBox, b : &BoundingBox) -> Vector4<f32> {
         // this is the GJK algorithm. Minkowski difference is the set of pairwise differences
         // between points in a and points in b.
         // a and b intersect iff origin in Minkowski difference, which we check on line 60
 
-        // return the corners of the intersection rectangle
-        let mut x_min = f32::MIN;
-        let mut x_max = f32::MAX; 
-        let mut y_min = f32::MIN; 
-        let mut y_max = f32::MAX;
-        for a_point in a.points() {
-            for b_point in b.points() {
-                if a_point == b_point {
-                    x_min = f32::min(x_min, b_point.x);
-                    x_max = f32::max(x_max, b_point.x);
-                    y_min = f32::min(y_min, b_point.y);
-                    y_max = f32::max(y_max, b_point.y);
-                }
+        let get_x_intersection = |a : &BoundingBox, b : &BoundingBox| -> Vector2<f32> {
+            let mut x_min = f32::MIN;
+            let mut x_max = f32::MAX; 
+            if a.center.x - a.width / 2.0 < b.center.x + b.width / 2.0 && b.center.x - b.width / 2.0 < a.center.x - a.width / 2.0 {
+                x_min = a.center.x - a.width / 2.0;
+                x_max = b.center.x + b.width / 2.0;
             }
-        }
-        return vec![
-            x_min,
-            x_max,
-            y_min,
-            y_max,
-        ];
+            else if b.center.x - b.width / 2.0 < a.center.x + a.width / 2.0 && a.center.x - a.width / 2.0 < b.center.x - b.width / 2.0 {
+                x_min = b.center.x - b.width / 2.0;
+                x_max = a.center.x + a.width / 2.0;
+            }
+            else if a.center.x - a.width / 2.0 < b.center.x - b.width / 2.0 && b.center.x + b.width / 2.0 < a.center.x + a.width / 2.0 {
+                x_min = b.center.x - b.width / 2.0;
+                x_max = b.center.x + b.width / 2.0;
+            }
+            else if b.center.x - b.width / 2.0 < a.center.x - a.width / 2.0 && a.center.x + a.width / 2.0 < b.center.x + b.width / 2.0 {
+                x_min = a.center.x - a.width / 2.0;
+                x_max = a.center.x + a.width / 2.0;
+            }
+
+            Vector2::new(x_min, x_max)
+        };
+
+        let get_y_intersection = |a : &BoundingBox, b : &BoundingBox| -> Vector2<f32> {
+            let mut y_min = f32::MIN;
+            let mut y_max = f32::MAX; 
+            if a.center.y - a.height / 2.0 < b.center.y + b.height / 2.0 && b.center.y - b.height / 2.0 < a.center.y - a.height / 2.0 {
+                y_min = a.center.y - a.height / 2.0;
+                y_max = b.center.y + b.height / 2.0;
+            }
+            else if b.center.y - b.height / 2.0 < a.center.y + a.height / 2.0 && a.center.y - a.height / 2.0 < b.center.y - b.height / 2.0 {
+                y_min = b.center.y - b.height / 2.0;
+                y_max = a.center.y + a.height / 2.0;
+            }
+            else if a.center.y - a.height / 2.0 < b.center.y - b.height / 2.0 && b.center.y + b.height / 2.0 < a.center.y + a.height / 2.0 {
+                y_min = b.center.y - b.height / 2.0;
+                y_max = b.center.y + b.height / 2.0;
+            }
+            else if b.center.y - b.height / 2.0 < a.center.y - a.height / 2.0 && a.center.y + a.height / 2.0 < b.center.y + b.height / 2.0 {
+                y_min = a.center.y - a.height / 2.0;
+                y_max = a.center.y + a.height / 2.0;
+            }
+
+            Vector2::new(y_min, y_max)
+        };
+
+        // return the corners of the intersection rectangle
+        // let mut x_min = f32::MIN;
+        // let mut x_max = f32::MAX; 
+        // let mut y_min = f32::MIN; 
+        // let mut y_max = f32::MAX;
+        // for a_point in a.points() {
+        //     for b_point in b.points() {
+        //         if a_point == b_point {
+        //             x_min = f32::min(x_min, b_point.x);
+        //             x_max = f32::max(x_max, b_point.x);
+        //             y_min = f32::min(y_min, b_point.y);
+        //             y_max = f32::max(y_max, b_point.y);
+        //         }
+        //     }
+        // }
+        
+        // return vec![
+        //     x_min,
+        //     x_max,
+        //     y_min,
+        //     y_max,
+        // ];
+        let x_bounds = get_x_intersection(a, b);
+        let y_bounds = get_y_intersection(a, b);
+
+        return Vector4::new(x_bounds[0], x_bounds[1], y_bounds[0], y_bounds[1]);
     }
 
     // returns empty vector if no intersection detected.
@@ -96,7 +147,7 @@ impl BoundingBox {
         let mut options = Vec::new();
         let intersection = BoundingBox::get_intersection(self, mover);
         
-        if  intersection != BoundingBox::NO_INTERSECTION {
+        if self.does_intersect(mover) {
             options = vec![
                 Vector2::new(intersection[1] - intersection[0] + BoundingBox::RESOLVE_OFFSET, 0.0),
                 Vector2::new(-(intersection[1] - intersection[0] + BoundingBox::RESOLVE_OFFSET), 0.0),
@@ -111,7 +162,22 @@ impl BoundingBox {
     // really shitty implementation
     // TODO: can be way faster
     pub fn does_intersect(&self, other: &BoundingBox) -> bool {
-        BoundingBox::get_intersection(self, other) != BoundingBox::NO_INTERSECTION
+        // BoundingBox::get_intersection(self, other) != BoundingBox::NO_INTERSECTION
+        let does_intersect_in_x = |a : &BoundingBox, b : &BoundingBox| -> bool {
+            (a.center.x - a.width / 2.0 < b.center.x + b.width / 2.0 && b.center.x - b.width / 2.0 < a.center.x - a.width / 2.0 )
+            || (b.center.x - b.width / 2.0 < a.center.x + a.width / 2.0 && a.center.x - a.width / 2.0 < b.center.x - b.width / 2.0)
+            || (a.center.x - a.width / 2.0 < b.center.x - b.width / 2.0 && b.center.x + b.width / 2.0 < a.center.x + a.width / 2.0 )
+            || (b.center.x - b.width / 2.0 < a.center.x - a.width / 2.0 && a.center.x + a.width / 2.0 < b.center.x + b.width / 2.0)
+        };
+
+        let does_intersect_in_y = |a : &BoundingBox, b : &BoundingBox| -> bool {
+            (a.center.y - a.height / 2.0 < b.center.y + b.height / 2.0 && b.center.y - b.height / 2.0 < a.center.y - a.height / 2.0)
+            || (b.center.y - b.height / 2.0 < a.center.y + a.height / 2.0 && a.center.y - a.height / 2.0 < b.center.y - b.height / 2.0)
+            || (a.center.y - a.height / 2.0 < b.center.y - b.height / 2.0 && b.center.y + b.height / 2.0 < a.center.y + a.height / 2.0)
+            || (b.center.y - b.height / 2.0 < a.center.y - a.height / 2.0 && a.center.y + a.height / 2.0 < b.center.y + b.height / 2.0)
+        };
+
+        return does_intersect_in_x(self, other) && does_intersect_in_y(self, other);
     }
 
     // dumb question but do we need these?
