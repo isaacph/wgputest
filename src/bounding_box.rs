@@ -4,13 +4,13 @@
 
 use cgmath::{Vector2};
 
-pub struct Box {
+pub struct BoundingBox {
     pub center: cgmath::Vector2<f32>,
     pub width: f32,
     pub height: f32,
 }
 
-impl Box {
+impl BoundingBox {
     const INTERSECT_STEP_SIZE: f32 = 0.01;
 
     const RESOLVE_OFFSET: f32 = 0.005;
@@ -65,7 +65,7 @@ impl Box {
         return point_set;
     }
  
-    pub fn intersect(&a : Box, &b : Box) -> Vec<f32> {
+    pub fn intersect(&a : BoundingBox, &b : BoundingBox) -> Vec<f32> {
         // this is the GJK algorithm. Minkowski difference is the set of pairwise differences
         // between points in a and points in b.
         // a and b intersect iff origin in Minkowski difference, which we check on line 60
@@ -94,7 +94,7 @@ impl Box {
     }
 
 
-    pub fn resolve_options(&pusher: Box, &mover: Box) -> Vec<cgmath::Vector2<f32> > {
+    pub fn resolve_options(&pusher: BoundingBox, &mover: BoundingBox) -> Vec<cgmath::Vector2<f32> > {
         options = Vec::new();
         intersection = intersect(pusher, mover);
         
@@ -108,15 +108,15 @@ impl Box {
         }
     }
 
-    pub fn resolve(&pusher: Box, &mover: Box) -> Vector2<f32> {
+    pub fn resolve(&pusher: BoundingBox, &mover: BoundingBox) -> Vector2<f32> {
         // TODO: make this work using GLK
     }
 
-    pub fn resolve_x(&pusher: Box, &mover: Box) -> Vector2<f32> {
+    pub fn resolve_x(&pusher: BoundingBox, &mover: BoundingBox) -> Vector2<f32> {
         // TODO: make this work using GLK
     }
 
-    pub fn resolve_y(&pusher: Box, &mover: Box) -> Vector2<f32> {
+    pub fn resolve_y(&pusher: BoundingBox, &mover: BoundingBox) -> Vector2<f32> {
         // TODO: make this work using GLK
     }
 }
