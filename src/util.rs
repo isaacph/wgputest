@@ -35,3 +35,4 @@ impl<T, P> PartialOrdMinMax<P> for T
         })
     }
 }
+

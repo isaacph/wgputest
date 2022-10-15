@@ -225,7 +225,7 @@ impl State {
         if !self.camera_controller.process_events(event) {
             match *event {
                 WindowEvent::KeyboardInput {
-                        input: KeyboardInput {
+                    input: KeyboardInput {
                         state,
                         virtual_keycode:
                         Some(key),

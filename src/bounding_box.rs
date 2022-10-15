@@ -4,6 +4,7 @@
 
 use cgmath::{Vector2};
 
+#[derive(Clone)]
 pub struct BoundingBox {
     pub center: Vector2<f32>,
     pub width: f32,
@@ -15,7 +16,7 @@ impl BoundingBox {
 
     const RESOLVE_OFFSET: f32 = 0.005;
 
-    const NO_INTERSECTION: Vec<f32> =  vec![
+    const NO_INTERSECTION: &[f32] = &[
         f32::MIN,
         f32::MAX,
         f32::MIN,
@@ -49,9 +50,9 @@ impl BoundingBox {
     pub fn points(&self) -> Vec<Vector2<f32> > {
         let mut point_set: Vec<Vector2<f32> > = Vec::new();
         
-        let x_current = self.center.x - self.width / 2.0;
+        let mut x_current = self.center.x - self.width / 2.0;
         while x_current != self.center.x + self.width / 2.0 {
-            let y_current = self.center.y - self.height / 2.0;
+            let mut y_current = self.center.y - self.height / 2.0;
             while y_current != self.center.y + self.height / 2.0 {
                 point_set.push(Vector2::new(x_current, y_current));
                 y_current = f32::min(y_current + BoundingBox::INTERSECT_STEP_SIZE, self.height);
@@ -68,10 +69,10 @@ impl BoundingBox {
         // a and b intersect iff origin in Minkowski difference, which we check on line 60
 
         // return the corners of the intersection rectangle
-        let x_min = f32::MIN;
-        let x_max = f32::MAX; 
-        let y_min = f32::MIN; 
-        let y_max = f32::MAX;
+        let mut x_min = f32::MIN;
+        let mut x_max = f32::MAX; 
+        let mut y_min = f32::MIN; 
+        let mut y_max = f32::MAX;
         for a_point in a.points() {
             for b_point in b.points() {
                 if a_point == b_point {
@@ -92,7 +93,7 @@ impl BoundingBox {
 
     // returns empty vector if no intersection detected.
     pub fn resolve_options(&self, mover: &BoundingBox) -> Vec<Vector2<f32> > {
-        let options = Vec::new();
+        let mut options = Vec::new();
         let intersection = BoundingBox::get_intersection(self, mover);
         
         if  intersection != BoundingBox::NO_INTERSECTION {
