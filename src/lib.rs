@@ -239,11 +239,10 @@ impl State {
                             self.input_state.key_down.insert(key);
                             self.input_state.key_pos_edge.insert(key);
                         },
-                        ElementState::Pressed => {
+                        ElementState::Released => {
                             self.input_state.key_down.remove(&key);
                             self.input_state.key_neg_edge.insert(key);
                         },
-                        _ => ()
                     };
                     true
                 },

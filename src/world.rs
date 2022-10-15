@@ -110,7 +110,7 @@ impl Physics for Player {
     }
 
     fn add_position(&mut self, delta_position: Vector2<f32>) {
-        self.data.velocity += delta_position;
+        self.data.bounding_box.center += delta_position;
     }
 
     fn can_move(&self) -> bool {
@@ -164,7 +164,7 @@ impl Physics for Enemy {
     }
 
     fn add_position(&mut self, delta_position: Vector2<f32>) {
-        self.data.velocity += delta_position;
+        self.data.bounding_box.center += delta_position;
     }
 
     fn can_move(&self) -> bool {
@@ -221,7 +221,7 @@ impl Physics for Projectile {
     }
 
     fn add_position(&mut self, delta_position: Vector2<f32>) {
-        self.data.velocity += delta_position;
+        self.data.bounding_box.center += delta_position;
     }
 
     fn can_move(&self) -> bool {
@@ -276,7 +276,7 @@ impl Physics for Stage {
     }
 
     fn add_position(&mut self, delta_position: Vector2<f32>) {
-        self.data.velocity += delta_position;
+        self.data.bounding_box.center += delta_position;
     }
 
     fn can_move(&self) -> bool {
@@ -291,7 +291,7 @@ pub struct World {
 
 impl World {
     pub fn new() -> Self {
-        let black_color: Vector4<f32> = Vector4::new(0.0, 0.0, 0.0, 0.0);
+        let black_color: Vector4<f32> = Vector4::new(0.0, 0.0, 0.0, 1.0);
         
         let player = Box::new(Player::new(
             Vector2::new(0.0, 0.0),
@@ -339,14 +339,16 @@ impl World {
             use VirtualKeyCode::*;
             Vector2::new(
                 (input_state.key_down.contains(&D) as i32 - input_state.key_down.contains(&A) as i32) as f32,
-                (input_state.key_down.contains(&W) as i32 - input_state.key_down.contains(&S) as i32) as f32,
+                (input_state.key_down.contains(&S) as i32 - input_state.key_down.contains(&W) as i32) as f32,
             )
         };
 
         // move player by move vec
         self.objects.get_mut(&self.player_id).map(|player| {
             let velocity = player.get_velocity();
-            player.add_velocity(move_vec * delta_time - velocity);
+            player.add_velocity(move_vec - velocity);
+            println!("{}, {}", player.get_velocity().x, player.get_velocity().y);
+            println!("{}, {}", player.get_bounding_box().center.x, player.get_bounding_box().center.y);
         });
 
         // update
@@ -369,12 +371,12 @@ pub fn physics_step(world: &mut World, delta_time: f32) {
     //          respond to collisions in y
 
     let obj_ids: Vec<Uuid> = world.objects.keys().cloned().collect();
-    println!("1");
     for id in obj_ids {
         let obj = world.objects.get(&id).unwrap();
         let delta = obj.get_velocity() * delta_time;
         let box_a = obj.get_bounding_box();
         let mut total_resolve = Vector2::new(0.0, 0.0);
+        let mut total_resolve = delta;
 
         // finds the number of overlaps of one bounding box against the world
         let find_overlaps = |box_a: &BoundingBox, box_a_id: Uuid| {
@@ -389,7 +391,6 @@ pub fn physics_step(world: &mut World, delta_time: f32) {
             })
         };
 
-        println!("2");
         for delta in [
             Vector2::new(delta.x, 0.0),
             Vector2::new(0.0, delta.y),
@@ -399,7 +400,6 @@ pub fn physics_step(world: &mut World, delta_time: f32) {
 
             // get starting overlaps
             let starting_overlaps = find_overlaps(&box_a, id);
-            println!("3");
 
             // move in delta direction
             box_a.add(delta);
@@ -414,7 +414,6 @@ pub fn physics_step(world: &mut World, delta_time: f32) {
                     let box_b = other.get_bounding_box();
                     let resolve_options = box_a.resolve_options(&box_b);
                     
-                    println!("5");
                     for resolve_option in resolve_options {
                         // determine how good the resolve option is
                         let box_a_resolved = {
@@ -427,7 +426,6 @@ pub fn physics_step(world: &mut World, delta_time: f32) {
                             resolve_option.x * resolve_option.x +
                             resolve_option.y * resolve_option.y;
                         
-                        println!("6");
                         // if it's better than best then use it
                         if new_overlaps < best_resolve_overlaps ||
                                 (new_overlaps == best_resolve_overlaps &&
@@ -444,6 +442,7 @@ pub fn physics_step(world: &mut World, delta_time: f32) {
         }
 
         let obj = world.objects.get_mut(&id).unwrap();
+        obj.add_position(total_resolve);
         obj.respond_to_resolution(total_resolve, &vec![]);
     }
 }
