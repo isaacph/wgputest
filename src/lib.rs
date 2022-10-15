@@ -224,12 +224,16 @@ impl State {
         };
         if !self.camera_controller.process_events(event) {
             match *event {
-                KeyboardInput {
-                    state,
-                    virtual_keycode:
-                    Some(key),
+                WindowEvent::KeyboardInput {
+                        input: KeyboardInput {
+                        state,
+                        virtual_keycode:
+                        Some(key),
+                        ..
+                    },
                     ..
-                } if relevant_inputs.contains(&key) => {
+                }
+                 if relevant_inputs.contains(&key) => {
                     match state {
                         ElementState::Pressed => {
                             self.input_state.key_down.insert(key);
@@ -237,12 +241,13 @@ impl State {
                         },
                         ElementState::Pressed => {
                             self.input_state.key_down.remove(&key);
-                            self.input_state.key_neg_edgensert(key);
+                            self.input_state.key_neg_edge.insert(key);
                         },
                         _ => ()
                     };
                     true
-                }
+                },
+                _ => false,
             }
         } else {
             true
