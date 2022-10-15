@@ -14,7 +14,7 @@ pub struct BoundingBox {
 impl BoundingBox {
     const INTERSECT_STEP_SIZE: f32 = 0.01;
 
-    const RESOLVE_OFFSET: f32 = 0.005;
+    const RESOLVE_OFFSET: f32 = 0.00005;
 
     const NO_INTERSECTION: &[f32] = &[
         f32::MIN,

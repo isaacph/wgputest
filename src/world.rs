@@ -7,81 +7,77 @@ use winit::event::{WindowEvent, KeyboardInput, ElementState, VirtualKeyCode};
 use uuid::{uuid, Uuid};
 use std::collections::HashMap;
 
+// pub mod basic_enemy;
+
 pub trait IDObject {
     fn get_uuid(&self) -> Uuid;
 }
 
 pub trait Physics: IDObject {
-    fn get_bounding_box(&self) -> BoundingBox;
-    fn get_velocity(&self) -> Vector2<f32>;
-    fn respond_to_resolution(&mut self, delta_position: Vector2<f32>, objects: &Vec<Box<dyn GameObject>>);
-    fn add_velocity(&mut self, delta_velocity: Vector2<f32>);
-    fn add_position(&mut self, delta_position: Vector2<f32>);
-    fn can_move(&self) -> bool;
+    fn get_physics(&self) -> Option<(Uuid, PhysicsObject)>;
+    fn resolve(&mut self, resolve: Vector2<f32>) -> Vector2<f32>;
 }
 
 pub trait GameObject: Physics + IDObject {
-    fn get_instance(&self) -> Instance;
 }
 
-pub struct GameObjectData {
-    pub bounding_box: BoundingBox,
-    pub velocity: Vector2<f32>,
-    
-    // carryover info from preexisting GameObject class 
-    pub scale: Vector2<f32>,
-    pub color: Vector4<f32>, // in the future don't store any rendering info inside the world
-}
-
-impl GameObjectData {
-    pub fn new_moving(position: Vector2<f32>, scale: Vector2<f32>, color: Vector4<f32>, 
-            velocity: Vector2<f32>) -> Self {
-        Self {
-            bounding_box: BoundingBox::new(position, 1.0 * scale.x, 1.0 * scale.y),
-            velocity,
-            scale,
-            color,
-        }
-    }
-    
-    pub fn new(position: Vector2<f32>, scale: Vector2<f32>, color: Vector4<f32>) -> Self {
-        Self {
-            bounding_box: BoundingBox::new(position, 1.0 * scale.x, 1.0 * scale.y),
-            velocity: Vector2::new(0.0, 0.0),
-            scale,
-            color,
-        }
-    }
-
-    fn get_instance(&self) -> Instance {
-        return Instance {
-            position: self.bounding_box.center,
-            scale: self.scale,
-            color: self.color,
-        };
-    }
-}
+// pub struct GameObjectData {
+//     // carryover info from preexisting GameObject class 
+//     pub scale: Vector2<f32>,
+//     pub color: Vector4<f32>, // in the future don't store any rendering info inside the world
+// }
+// 
+// impl GameObjectData {
+//     pub fn new_moving(position: Vector2<f32>, scale: Vector2<f32>, color: Vector4<f32>, 
+//             velocity: Vector2<f32>) -> Self {
+//         Self {
+//             bounding_box: BoundingBox::new(position, 1.0 * scale.x, 1.0 * scale.y),
+//             velocity,
+//             scale,
+//             color,
+//         }
+//     }
+//     
+//     pub fn new(position: Vector2<f32>, scale: Vector2<f32>, color: Vector4<f32>) -> Self {
+//         Self {
+//             bounding_box: BoundingBox::new(position, 1.0 * scale.x, 1.0 * scale.y),
+//             velocity: Vector2::new(0.0, 0.0),
+//             scale,
+//             color,
+//         }
+//     }
+// 
+//     fn get_instance(&self) -> Instance {
+//         return Instance {
+//             position: self.bounding_box.center,
+//             scale: self.scale,
+//             color: self.color,
+//         };
+//     }
+// }
 
 pub struct Player {
     id: Uuid,
-    data: GameObjectData
+    pub physics: PhysicsObject
 }
 
 
 impl Player {
     // initialize with position, scale, and color -- velocity and acceleration should be 0 when starting
-    pub fn new(position: Vector2<f32>, scale: Vector2<f32>, color: Vector4<f32>) -> Self {
+    pub fn new(position: Vector2<f32>, scale: Vector2<f32>) -> Self {
+        let physics = PhysicsObject {
+            bounding_box: BoundingBox::new(position, scale.x, scale.y),
+            velocity: Vector2::new(0.0, 0.0),
+            can_move: true
+        };
         Self {
-            data: GameObjectData::new(position, scale, color),
             id: Uuid::new_v4(),
+            physics,
         }
     }
 }
 
 impl GameObject for Player {
-    fn get_instance(&self) -> Instance {
-        return self.data.get_instance();
-    }
 }
 
 impl IDObject for Player {
@@ -91,245 +87,145 @@ impl IDObject for Player {
 }
 
 impl Physics for Player {
-    fn get_bounding_box(&self) -> BoundingBox {
-        return self.data.bounding_box.clone();
+    fn get_physics(&self) -> Option<(Uuid, PhysicsObject)> {
+        Some((self.id, self.physics.clone()))
     }
 
-    fn get_velocity(&self) -> Vector2<f32> {
-        return self.data.velocity;
-    }
-
-    fn respond_to_resolution(&mut self, delta_position: Vector2<f32>, _objects: &Vec<Box<dyn GameObject>>) {
-        // isaac halp
-        // easy impl:
-        self.add_position(delta_position);
-    }
-
-    fn add_velocity(&mut self, delta_velocity: Vector2<f32>) {
-        self.data.velocity += delta_velocity;
-    }
-
-    fn add_position(&mut self, delta_position: Vector2<f32>) {
-        self.data.bounding_box.center += delta_position;
-    }
-
-    fn can_move(&self) -> bool {
-        return true;
+    fn resolve(&mut self, resolve: Vector2<f32>) -> Vector2<f32> {
+        self.physics.bounding_box.add(resolve);
+        resolve
     }
 }
 
-pub struct Enemy {
+
+pub struct Projectile {
     id: Uuid,
-    data: GameObjectData
+    physics: PhysicsObject
 }
 
-impl Enemy {
-    pub fn new(position: Vector2<f32>, scale: Vector2<f32>, color: Vector4<f32>) -> Self {
+
+impl Projectile {
+    // initialize with position, scale, and color -- velocity and acceleration should be 0 when starting
+    pub fn new(position: Vector2<f32>, scale: Vector2<f32>) -> Self {
+        let physics = PhysicsObject {
+            bounding_box: BoundingBox::new(position, scale.x, scale.y),
+            velocity: Vector2::new(0.0, 0.0),
+            can_move: true
+        };
         Self {
-            data: GameObjectData::new(position, scale, color),
-            id: Uuid::new_v4()
+            id: Uuid::new_v4(),
+            physics,
         }
     }
 }
 
-impl GameObject for Enemy {
-    fn get_instance(&self) -> Instance {
-        return self.data.get_instance();
-    }
+impl GameObject for Projectile {
 }
 
-impl IDObject for Enemy {
+impl IDObject for Projectile {
     fn get_uuid(&self) -> Uuid {
         return self.id;
     }
 }
 
-impl Physics for Enemy {
-    fn get_bounding_box(&self) -> BoundingBox {
-        return self.data.bounding_box.clone();
-    }
-
-    fn get_velocity(&self) -> Vector2<f32> {
-        return self.data.velocity;
-    }
-
-    fn respond_to_resolution(&mut self, delta_position: Vector2<f32>, _objects: &Vec<Box<dyn GameObject>>) {
-        // isaac halp
-        // easy impl:
-        self.add_position(delta_position);
-    }
-
-    fn add_velocity(&mut self, delta_velocity: Vector2<f32>) {
-        self.data.velocity += delta_velocity;
-    }
-
-    fn add_position(&mut self, delta_position: Vector2<f32>) {
-        self.data.bounding_box.center += delta_position;
-    }
-
-    fn can_move(&self) -> bool {
-        return true;
-    }
-}
-
-pub struct Projectile {
-    id: Uuid,
-    data: GameObjectData
-}
-
-impl Projectile {
-    // projectiles SHOULD be initialized with velocity
-    pub fn new(position: Vector2<f32>, scale: Vector2<f32>, color: Vector4<f32>, 
-            velocity: Vector2<f32>) -> Self {
-        Self {
-            data: GameObjectData::new_moving(position, scale, color, velocity),
-            id: Uuid::new_v4(),
-        }
-    }
-
-}
-
-impl GameObject for Projectile {
-    fn get_instance(&self) -> Instance {
-        return self.data.get_instance();
-    }
-}
-
-impl IDObject for Projectile {
-    fn get_uuid(&self) -> Uuid {
-        self.id
-    }
-}
-
 impl Physics for Projectile {
-    fn get_bounding_box(&self) -> BoundingBox {
-        return self.data.bounding_box.clone();
+    fn get_physics(&self) -> Option<(Uuid, PhysicsObject)> {
+        Some((self.id, self.physics.clone()))
     }
 
-    fn get_velocity(&self) -> Vector2<f32> {
-        return self.data.velocity;
-    }
-
-    fn respond_to_resolution(&mut self, delta_position: Vector2<f32>, objects: &Vec<Box<dyn GameObject>>) {
-        // isaac halp
-        // easy impl:
-        self.add_position(delta_position);
-    }
-
-    fn add_velocity(&mut self, delta_velocity: Vector2<f32>) {
-        self.data.velocity += delta_velocity;
-    }
-
-    fn add_position(&mut self, delta_position: Vector2<f32>) {
-        self.data.bounding_box.center += delta_position;
-    }
-
-    fn can_move(&self) -> bool {
-        // projectile should just disappear on hit, so this doesn't really matter either way
-        return true;
+    fn resolve(&mut self, resolve: Vector2<f32>) -> Vector2<f32> {
+        self.physics.bounding_box.add(resolve);
+        resolve
     }
 }
 
 pub struct Stage {
     id: Uuid,
-    data: GameObjectData
+    pub physics: PhysicsObject
 }
 
+
 impl Stage {
-    pub fn new(position: Vector2<f32>, scale: Vector2<f32>, color: Vector4<f32>) -> Self {
+    // initialize with position, scale, and color -- velocity and acceleration should be 0 when starting
+    pub fn new(position: Vector2<f32>, scale: Vector2<f32>) -> Self {
+        let physics = PhysicsObject {
+            bounding_box: BoundingBox::new(position, scale.x, scale.y),
+            velocity: Vector2::new(0.0, 0.0),
+            can_move: false
+        };
         Self {
-            data: GameObjectData::new(position, scale, color),
             id: Uuid::new_v4(),
+            physics,
         }
     }
 }
 
 impl GameObject for Stage {
-    fn get_instance(&self) -> Instance {
-        return self.data.get_instance();
-    }
 }
 
 impl IDObject for Stage {
     fn get_uuid(&self) -> Uuid {
-        self.id
+        return self.id;
     }
 }
 
 impl Physics for Stage {
-    fn get_bounding_box(&self) -> BoundingBox {
-        return self.data.bounding_box.clone();
+    fn get_physics(&self) -> Option<(Uuid, PhysicsObject)> {
+        Some((self.id, self.physics.clone()))
     }
 
-    fn get_velocity(&self) -> Vector2<f32> {
-        return self.data.velocity;
-    }
-
-    fn respond_to_resolution(&mut self, delta_position: Vector2<f32>, _objects: &Vec<Box<dyn GameObject>>) {
-        // isaac halp
-        // easy impl:
-        self.add_position(delta_position);
-    }
-
-    fn add_velocity(&mut self, delta_velocity: Vector2<f32>) {
-        self.data.velocity += delta_velocity;
-    }
-
-    fn add_position(&mut self, delta_position: Vector2<f32>) {
-        self.data.bounding_box.center += delta_position;
-    }
-
-    fn can_move(&self) -> bool {
-        return false;
+    fn resolve(&mut self, resolve: Vector2<f32>) -> Vector2<f32> {
+        self.physics.bounding_box.add(resolve);
+        resolve
     }
 }
 
 pub struct World {
-    pub objects: HashMap<Uuid, Box<dyn GameObject>>,
-    pub player_id: Uuid,
+    // pub objects: HashMap<Uuid, Box<dyn GameObject>>,
+    pub player: Player,
+    pub stage: Vec<Stage>,
+
+    pub debug_objects: Vec<Instance>,
 }
 
 impl World {
     pub fn new() -> Self {
         let black_color: Vector4<f32> = Vector4::new(0.0, 0.0, 0.0, 1.0);
         
-        let player = Box::new(Player::new(
+        let player = Player::new(
             Vector2::new(0.0, 0.0),
             Vector2::new(1.0, 1.0),
-            black_color
-        ));
+        );
         let player_id = player.get_uuid();
 
-        let stage_left = Box::new(Stage::new(
+        let stage_left = Stage::new(
             Vector2::new(-1.0, 0.0),
             Vector2::new(0.25, 1.0),
-            black_color
-        ));
+        );
 
-        let stage_right = Box::new(Stage::new(
+        let stage_right = Stage::new(
             Vector2::new(1.0, 0.0),
             Vector2::new(0.25, 1.0),
-            black_color
-        ));
+        );
 
-        let stage_top = Box::new(Stage::new(
+        let stage_top = Stage::new(
             Vector2::new(0.0, 1.0),
             Vector2::new(1.0, 0.25),
-            black_color
-        ));
+        );
 
-        let stage_down = Box::new(Stage::new(
+        let stage_down = Stage::new(
             Vector2::new(0.0, -1.0),
             Vector2::new(1.0, 0.25),
-            black_color
-        ));
+        );
+        let stage = vec![stage_left, stage_right, stage_top, stage_down];
 
-        let objects: Vec<Box<dyn GameObject>> = vec![player, stage_left, stage_right, stage_top, stage_down];
+        // let objects: Vec<Box<dyn GameObject>> = vec![player, stage_left, stage_right, stage_top, stage_down];
 
-        let objects = objects.into_iter().map(|obj| (obj.get_uuid(), obj)).collect();
+        // let objects = objects.into_iter().map(|obj| (obj.get_uuid(), obj)).collect();
         Self {
-            objects,
-            player_id,
+            player,
+            stage,
+            debug_objects: vec![]
         }
     }
 
@@ -341,27 +237,70 @@ impl World {
                 (input_state.key_down.contains(&D) as i32 - input_state.key_down.contains(&A) as i32) as f32,
                 (input_state.key_down.contains(&S) as i32 - input_state.key_down.contains(&W) as i32) as f32,
             )
-        };
+        } * (input_state.key_down.contains(&VirtualKeyCode::Space) as i32 as f32 * 0.6 + 0.02);
 
         // move player by move vec
-        self.objects.get_mut(&self.player_id).map(|player| {
-            let velocity = player.get_velocity();
-            player.add_velocity(move_vec - velocity);
-            println!("{}, {}", player.get_velocity().x, player.get_velocity().y);
-            println!("{}, {}", player.get_bounding_box().center.x, player.get_bounding_box().center.y);
-        });
+        self.player.physics.velocity = move_vec;
 
         // update
         // for (id, object) in self.objects {
         //     
         // }
 
-        // physics step
-        physics_step(self, delta_time);
+        self.physics(delta_time);
+    }
+
+    fn physics(&mut self, delta_time: f32) {
+        // gather all who want to be physic'd
+        let x = &mut self.player;
+        let mut to_physics_on: Vec<&mut dyn Physics> = vec![
+            x
+        ];
+        to_physics_on.extend(self.stage.iter_mut().map(|stage| {
+            let x: &mut dyn Physics = stage;
+            x
+        }));
+
+        // grab simulation data
+        let physics_objects: HashMap<Uuid, PhysicsObject> = to_physics_on.iter()
+            .map(|game_obj| game_obj.get_physics()).flatten().collect();
+
+        // restructure so we can find callbacks
+        let mut id_objs: HashMap<Uuid, &mut dyn Physics> = to_physics_on.into_iter()
+            .map(|obj| (obj.get_uuid(), obj)).collect();
+
+        // simulate them
+        self.debug_objects = simulate(delta_time, physics_objects, |id, resolve, p_obj| {
+            id_objs.get_mut(&id).map(|obj| {
+                let obj: &mut dyn Physics = *obj;
+                p_obj.bounding_box.add(obj.resolve(resolve));
+            });
+        });
     }
 }
 
-pub fn physics_step(world: &mut World, delta_time: f32) {
+#[derive(Clone)]
+pub struct PhysicsObject {
+    pub bounding_box: BoundingBox,
+    pub velocity: Vector2<f32>,
+    pub can_move: bool,
+}
+
+type PhysicsID = Uuid;
+pub struct PhysicsData {
+    pub objects: HashMap<PhysicsID, PhysicsObject>,
+}
+
+impl PhysicsData {
+    pub fn new() -> Self {
+        Self {
+            objects: HashMap::new(),
+        }
+    }
+}
+pub fn simulate
+    <F: FnMut(PhysicsID, Vector2<f32>, &mut PhysicsObject)>
+    (delta_time: f32, mut objects: HashMap<PhysicsID, PhysicsObject>, mut resolve: F) -> Vec<Instance> {
     //  for each moveable object
     //      move object in x direction
     //          check collisions in x
@@ -369,80 +308,101 @@ pub fn physics_step(world: &mut World, delta_time: f32) {
     //      move object in y direction
     //          check collisions in y
     //          respond to collisions in y
+    let mut debug_objects = vec![];
 
-    let obj_ids: Vec<Uuid> = world.objects.keys().cloned().collect();
+    let obj_ids: Vec<Uuid> = objects.keys().cloned().collect();
     for id in obj_ids {
-        let obj = world.objects.get(&id).unwrap();
-        let delta = obj.get_velocity() * delta_time;
-        let box_a = obj.get_bounding_box();
-        let mut total_resolve = Vector2::new(0.0, 0.0);
-        let mut total_resolve = delta;
+        let obj = objects.get(&id).unwrap();
+        if obj.can_move {
+            let delta = obj.velocity * delta_time;
+            let box_a = obj.bounding_box.clone();
+            // let mut total_resolve = Vector2::new(0.0, 0.0);
+            let mut total_resolve = delta;
 
-        // finds the number of overlaps of one bounding box against the world
-        let find_overlaps = |box_a: &BoundingBox, box_a_id: Uuid| {
-            world.objects.values().fold(0, |count, other| {
-                if other.get_uuid() != box_a_id {
-                    let box_b = other.get_bounding_box();
-                    if box_a.does_intersect(&box_b) {
-                        return count + 1
+            // finds the number of overlaps of one bounding box against the self
+
+            let find_overlaps = |objects: &HashMap<Uuid, PhysicsObject>, box_a: &BoundingBox, box_a_id: Uuid| {
+                objects.iter().fold(0, |count, (other_id, other)| {
+                    if *other_id != box_a_id {
+                        let box_b = other.bounding_box.clone();
+                        if box_a.does_intersect(&box_b) {
+                            return count + 1
+                        }
                     }
-                }
-                count
-            })
-        };
+                    count
+                })
+            };
 
-        for delta in [
-            Vector2::new(delta.x, 0.0),
-            Vector2::new(0.0, delta.y),
-        ] {
-            let mut box_a = box_a.clone();
-            box_a.add(total_resolve);
+            for delta in [
+                Vector2::new(delta.x, 0.0),
+                Vector2::new(0.0, delta.y),
+            ] {
+                let mut box_a = box_a.clone();
+                box_a.add(total_resolve);
 
-            // get starting overlaps
-            let starting_overlaps = find_overlaps(&box_a, id);
+                // move in delta direction
+                box_a.add(delta);
 
-            // move in delta direction
-            box_a.add(delta);
+                // get starting overlaps
+                let starting_overlaps = find_overlaps(&objects, &box_a, id);
 
-            // find best way to resolve collisions
-            let mut best_resolve: Vector2<f32> = -delta;
-            let mut best_resolve_len_sq = delta.magnitude2();
-            let mut best_resolve_overlaps = starting_overlaps;
-            for other in world.objects.values() {
-                if other.get_uuid() != id {
-                    // got a non-me other
-                    let box_b = other.get_bounding_box();
-                    let resolve_options = box_a.resolve_options(&box_b);
-                    
-                    for resolve_option in resolve_options {
-                        // determine how good the resolve option is
-                        let box_a_resolved = {
-                            let mut box_a = box_a.clone();
-                            box_a.add(resolve_option);
-                            box_a
-                        };
-                        let new_overlaps = find_overlaps(&box_a_resolved, id);
-                        let new_len_sq =
-                            resolve_option.x * resolve_option.x +
-                            resolve_option.y * resolve_option.y;
+                // find best way to resolve collisions
+                // this method adds the current position
+                // let mut best_resolve: Vector2<f32> = -delta;
+                // let mut best_resolve_len_sq = delta.magnitude2();
+                // let mut best_resolve_overlaps = starting_overlaps;
+                let mut best_resolve: Vector2<f32> = Vector2::new(0.0, 0.0);
+                let mut best_resolve_len_sq = delta.magnitude2();
+                let mut best_resolve_overlaps = starting_overlaps;
+                for (other_id, other) in &objects {
+                    if *other_id != id {
+                        // got a non-me other
+                        let box_b = other.bounding_box.clone();
+                        let resolve_options = box_a.resolve_options(&box_b);
                         
-                        // if it's better than best then use it
-                        if new_overlaps < best_resolve_overlaps ||
-                                (new_overlaps == best_resolve_overlaps &&
-                                new_len_sq < best_resolve_len_sq) {
-                            best_resolve = resolve_option;
-                            best_resolve_len_sq = new_len_sq;
-                            best_resolve_overlaps = new_overlaps;
+                        for resolve_option in resolve_options {
+                            // determine how good the resolve option is
+                            let box_a_resolved = {
+                                let mut box_a = box_a.clone();
+                                box_a.add(resolve_option);
+                                box_a
+                            };
+                            let new_overlaps = find_overlaps(&objects, &box_a_resolved, id);
+                            let new_len_sq =
+                                resolve_option.x * resolve_option.x +
+                                resolve_option.y * resolve_option.y;
+                            
+                            // if it's better than best then use it
+                            if new_overlaps < best_resolve_overlaps ||
+                                    (new_overlaps == best_resolve_overlaps &&
+                                    new_len_sq < best_resolve_len_sq) {
+                                best_resolve = resolve_option;
+                                best_resolve_len_sq = new_len_sq;
+                                best_resolve_overlaps = new_overlaps;
+
+                                debug_objects.push(Instance {
+                                    position: box_a_resolved.center,
+                                    scale: box_a.get_scale(),
+                                    color: Vector4::new(1.0, 0.0, 0.0, 0.2),
+                                });
+                            } else {
+                                debug_objects.push(Instance {
+                                    position: box_a_resolved.center,
+                                    scale: box_a.get_scale(),
+                                    color: Vector4::new(1.0, 1.0, 0.0, 0.02),
+                                });
+                            }
                         }
                     }
                 }
+                best_resolve = Vector2::new(0.0, 0.0);
+
+                total_resolve += delta + best_resolve;
             }
 
-            total_resolve += delta + best_resolve;
+            let obj = objects.get_mut(&id).unwrap();
+            resolve(id, total_resolve, obj);
         }
-
-        let obj = world.objects.get_mut(&id).unwrap();
-        obj.add_position(total_resolve);
-        obj.respond_to_resolution(total_resolve, &vec![]);
     }
+    debug_objects
 }

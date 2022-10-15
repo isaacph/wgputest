@@ -257,16 +257,18 @@ impl State {
         // timing
         let frame = Instant::now();
         let delta_time = ((frame - self.last_frame).as_nanos() as f64 / 1000000000.0) as f32;
-        self.last_frame = frame;
+        if delta_time > 0.6 {
+            self.last_frame = frame;
 
-        self.world.update(delta_time, &self.input_state);
+            self.world.update(delta_time, &self.input_state);
 
-        // camera update
-        self.camera_controller.update_camera(delta_time, &mut self.camera);
-        
-        // clear inputs
-        self.input_state.key_pos_edge.clear();
-        self.input_state.key_neg_edge.clear();
+            // camera update
+            self.camera_controller.update_camera(delta_time, &mut self.camera);
+            
+            // clear inputs
+            self.input_state.key_pos_edge.clear();
+            self.input_state.key_neg_edge.clear();
+        }
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

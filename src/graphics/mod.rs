@@ -79,20 +79,28 @@ impl RenderEngine {
             self.font_renderer.reset();
 
             // render instructions go here
-            let instances = world.objects.iter().map(|(_id, obj)| {
-                obj.get_instance()
-            }).collect::<Vec<_>>();
+            let mut instances = vec![
+                Instance {
+                    position: world.player.physics.bounding_box.center,
+                    scale: world.player.physics.bounding_box.get_scale(),
+                    color: cgmath::Vector4::new(0.0, 0.0, 0.0, 1.0),
+                },
+            ];
+            instances.extend(world.stage.iter().map(|stage|
+                Instance {
+                    position: stage.physics.bounding_box.center,
+                    scale: stage.physics.bounding_box.get_scale(),
+                    color: cgmath::Vector4::new(0.0, 0.0, 0.0, 1.0),
+                })
+            );
             self.texture_renderer.render(render.queue, &mut render_pass, render.camera,
                 vec![
                    (
-                       instances[instances.len()/2..].to_vec(),
-                       &self.diffuse_texture
+                       instances[0..instances.len()].to_vec(),
+                       &self.solid_texture
                    ),
-                ])?;
-            self.texture_renderer.render(render.queue, &mut render_pass, render.camera,
-                vec![
                    (
-                       instances[0..instances.len()/2].to_vec(),
+                       world.debug_objects.clone(),
                        &self.solid_texture
                    ),
                 ])?;
