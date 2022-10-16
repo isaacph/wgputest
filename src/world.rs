@@ -38,33 +38,180 @@ pub enum GameStateChange {
 }
 
 impl World {
-    const SPAWN_TIME1: f32 = 5.0;
-    const SPAWN_TIME2: f32 = 8.0;
+    const SPAWN_TIME1: f32 = 4.0;
+    const SPAWN_TIME2: f32 = 6.0;
 
     pub fn new() -> Self {
         let player = Player::new(
             Vector2::new(-2.0, 2.0)
         );
         let basic_enemy = BasicEnemy::new(
-            Vector2::new(2.0, 2.0)
+            Vector2::new(0.0, -1.0)
         );
         let jumping_enemy = JumpingEnemy::new(
-            Vector2::new(3.0, 2.0)
+            Vector2::new(7.0, 6.0)
         );
 
         let mut stage = HashMap::new();
         stage.insert(Uuid::new_v4(), Stage::new());
         stage.values_mut().for_each(|stage| {
-            stage.set_tile(&Vector2::new(4, 10), Some(TileType::Dirt));
-            stage.set_tile(&Vector2::new(3, 10), Some(TileType::Dirt));
-            stage.set_tile(&Vector2::new(2, 10), Some(TileType::Dirt));
-            stage.set_tile(&Vector2::new(1, 10), Some(TileType::Dirt));
-            stage.set_tile(&Vector2::new(0, 10), Some(TileType::Dirt));
-            stage.set_tile(&Vector2::new(0, 10), Some(TileType::Dirt));
-            stage.set_tile(&Vector2::new(-1, 10), Some(TileType::Dirt));
-            stage.set_tile(&Vector2::new(-2, 10), Some(TileType::Dirt));
-            stage.set_tile(&Vector2::new(-3, 10), Some(TileType::Dirt));
-            stage.set_tile(&Vector2::new(-4, 10), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-14, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-13, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-12, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-11, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-10, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-9, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-8, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-7, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-6, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-5, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-4, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-3, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-2, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-1, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(0, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(1, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(2, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(3, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(4, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(5, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(6, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(7, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(8, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(9, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(10, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(11, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(12, 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13, 9), Some(TileType::Dirt));
+
+            stage.set_tile(&Vector2::new(-14, -9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-13, -9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-12, -9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-11, -9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-10, -9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-9,- 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-8,- 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-7,- 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-6,- 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-5,- 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-4,- 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-3,- 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-2,- 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-1,- 9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(0, -9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(1, -9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(2, -9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(3, -9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(4, -9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(5, -9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(6, -9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(7, -9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(8, -9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(9, -9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(10, -9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(11, -9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(12, -9), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13, -9), Some(TileType::Dirt));
+
+            stage.set_tile(&Vector2::new(13, -8), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13, -7), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13, -6), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13, -5), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13, -4), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13, -3), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13, -2), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13, -1), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13, 0), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13, 1), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13, 2), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13,3), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13, 4), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13, 5), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13, 6), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13, 7), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13, 8), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(13, 9), Some(TileType::Dirt));
+
+            stage.set_tile(&Vector2::new(-14, -8), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-14, -7), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-14, -6), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-14, -5), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-14, -4), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-14, -3), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-14, -2), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-14, -1), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-14, 0), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-14, 1), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-14, 2), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-14,3), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-14, 4), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-14, 5), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-14, 6), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-14, 7), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-14, 8), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-14, 9), Some(TileType::Dirt));
+
+            stage.set_tile(&Vector2::new(0, 8), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(0, 7), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(0, 6), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(0, 5), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(0, 4), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(0, 3), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(0, 2), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(0, 1), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(0, 0), Some(TileType::Dirt));
+
+            stage.set_tile(&Vector2::new(-1, 6), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-2, 6), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-3, 6), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-4, 6), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-5, 6), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-6, 6), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-7, 6), Some(TileType::Dirt));
+
+            stage.set_tile(&Vector2::new(-14, 3), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-13, 3), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-12, 3), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-11, 3), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-10, 3), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-9, 3), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-8, 3), Some(TileType::Dirt));
+
+            stage.set_tile(&Vector2::new(-1, 0), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-1, 1), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-1, 2), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(1, 0), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(1, 1), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(1, 2), Some(TileType::Dirt));
+
+            stage.set_tile(&Vector2::new(-2, 1), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-3, 1), Some(TileType::Dirt));
+            
+            stage.set_tile(&Vector2::new(2, -1), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(3, -2), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(4, -3), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(5, -4), Some(TileType::Dirt));
+
+            stage.set_tile(&Vector2::new(8, -4), Some(TileType::Dirt));
+
+            stage.set_tile(&Vector2::new(6, -2), Some(TileType::Dirt));
+
+            stage.set_tile(&Vector2::new(12, -4), Some(TileType::Dirt));
+
+            stage.set_tile(&Vector2::new(10, -2), Some(TileType::Dirt));
+
+            stage.set_tile(&Vector2::new(8, -0), Some(TileType::Dirt));
+
+            stage.set_tile(&Vector2::new(12, -0), Some(TileType::Dirt));
+
+            stage.set_tile(&Vector2::new(10, 6), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(9, 7), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(8, 7), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(7, 7), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(6, 7), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(5, 7), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(4, 7), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(3, 6), Some(TileType::Dirt));
         });
         Self {
             time_towards_next_spawn1: 0.0, 
@@ -84,7 +231,7 @@ impl World {
         self.time_towards_next_spawn1 += delta_time;
         if self.time_towards_next_spawn1 >= World::SPAWN_TIME1 {
             let basic_enemy = BasicEnemy::new(
-                Vector2::new(2.0, 2.0)
+                Vector2::new(0.0, -1.0)
             );
             self.basic_enemies.push(basic_enemy);
 
@@ -94,7 +241,7 @@ impl World {
         self.time_towards_next_spawn2 += delta_time;
         if self.time_towards_next_spawn2 >= World::SPAWN_TIME2 {
             let jumping_enemy = JumpingEnemy::new(
-                Vector2::new(4.0, 2.0)
+                Vector2::new(7.0, 6.0)
             );
             self.jumping_enemies.push(jumping_enemy);
 
