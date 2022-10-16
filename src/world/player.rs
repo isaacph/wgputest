@@ -44,7 +44,6 @@ impl Player {
 
     const PLAYER_MOVE_SPEED_X: f32 = 7.0;
     const PLAYER_ACCEL_X: f32 = 16.0;
-    // const PLAYER_STOPPING_MULTIPLIER_X: f32 = 1.0;
     const PLAYER_ON_GROUND_MULTIPLIER_X: f32 = 2.0;
     const PLAYER_TURNAROUND_MULTIPLIER_X: f32 = 14.0; 
     // initialize with position, scale, and color -- velocity and acceleration should be 0 when starting
@@ -174,27 +173,6 @@ impl Player {
         } else {
             delta_time * Player::PLAYER_ACCEL_X
         };
-        // let accel_x = delta_time * Player::PLAYER_ACCEL_X;
-
-        // find target velocity x
-        // let mut target_vel_x = 0.0;
-        
-        // let target_vel_x = match (self.horizontal_state, self.aerial_state) {
-        //     // when aerial state is OnGround, physics should feel snappier -- higher velocities 
-        //     (HorizontalState::MovingLeft, AerialState::OnGround) => -Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_ON_GROUND_MULTIPLIER_X,
-        //     (HorizontalState::MovingLeft, _) => -Player::PLAYER_MOVE_SPEED_X,
-
-        //     (HorizontalState::TurningLeft, AerialState::OnGround) => -Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X * Player::PLAYER_ON_GROUND_MULTIPLIER_X,
-        //     (HorizontalState::TurningLeft, _) => -Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X,
-
-        //     (HorizontalState::MovingRight, AerialState::OnGround) => Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_ON_GROUND_MULTIPLIER_X,
-        //     (HorizontalState::MovingRight, _) => Player::PLAYER_MOVE_SPEED_X,
-
-        //     (HorizontalState::TurningRight, AerialState::OnGround) => Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X * Player::PLAYER_ON_GROUND_MULTIPLIER_X,
-        //     (HorizontalState::TurningRight, _) => Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X,
-
-        //     (_, _) => 0.0
-        // };
 
         let target_vel_x = match self.horizontal_state {
             HorizontalState::MovingLeft => -Player::PLAYER_MOVE_SPEED_X,
@@ -203,28 +181,6 @@ impl Player {
             HorizontalState::TurningRight => Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X,
             _ => 0.0
         };
-
-        // if input_state.key_down.contains(&VirtualKeyCode::D) &&
-        //     !input_state.key_down.contains(&VirtualKeyCode::A) {
-        //     // make turning faster than going in the same direction -- less slippery 
-        //     if target_vel_x < 0.0 {
-        //         target_vel_x += if self.aerial_state == AerialState::OnGround {
-        //             Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X * ;
-        //         } else {
-        //             Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X;
-        //         }
-        //     }
-        //     // strafe right
-        //     target_vel_x += Player::PLAYER_MOVE_SPEED_X;
-        // }
-        // if input_state.key_down.contains(&VirtualKeyCode::A) &&
-        //     !input_state.key_down.contains(&VirtualKeyCode::D) {
-        //     if target_vel_x > 0.0 {
-        //         target_vel_x -= Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X;
-        //     }
-        //     // strafe left
-        //     target_vel_x -= Player::PLAYER_MOVE_SPEED_X;
-        // }
 
         // move player to match target velocity x
         if f32::abs(self.physics.velocity.x - target_vel_x) < accel_x {
@@ -255,23 +211,6 @@ impl Player {
 
             (_, _) => self.horizontal_state
         };
-        
-        // if self.physics.velocity.x > 0.0 {
-        //     self.horizontal_state = if self.horizontal_state == HorizontalState::TurningRight || self.horizontal_state == HorizontalState::MovingLeft {
-        //         HorizontalState::TurningRight
-        //     } else {
-        //         HorizontalState::MovingRight
-        //     };
-        // } else if self.physics.velocity.x < 0.0 {
-        //     self.horizontal_state = if self.horizontal_state == HorizontalState::TurningLeft || self.horizontal_state == HorizontalState::MovingRight {
-        //         HorizontalState::TurningLeft
-        //     } else {
-        //         HorizontalState::MovingLeft
-        //     };
-        // } else {
-        //     self.horizontal_state = HorizontalState::Stopped;
-        // }
-
     }
 }
 
@@ -305,6 +244,11 @@ impl Physics for Player {
         if resolve.y > 0.0 {
             // on colliding with the ceiling
             self.physics.velocity.y = f32::max(self.physics.velocity.y, 0.0);
+        }
+        if resolve.x != 0.0 {
+            // horizontal collision
+            self.physics.velocity.x = 0.0;
+            self.horizontal_state = HorizontalState::Stopped;
         }
         delta + resolve
     }
