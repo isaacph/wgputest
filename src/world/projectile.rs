@@ -71,7 +71,7 @@ impl Physics for Projectile {
         vec![(self.id, self.physics.clone())]
     }
 
-    fn resolve(&mut self, _: Uuid, delta: Vector2<f32>, resolve: Vector2<f32>, types: Vec<PhysObjType>) -> Vector2<f32> {
+    fn resolve(&mut self, _: Uuid, delta: Vector2<f32>, resolve: Vector2<f32>, types: Vec<(PhysObjType, Uuid)>) -> Vector2<f32> {
         self.physics.bounding_box.add(delta + resolve);
         if types.len() > 0 {
             println!("Proj move {:?}, {:?}, {:?}", delta, resolve, types);

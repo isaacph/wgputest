@@ -22,11 +22,15 @@ pub trait GameObject: Physics + IDObject {
 pub struct World {
     // pub objects: HashMap<Uuid, Box<dyn GameObject>>,
     pub player: Player,
-    pub basic_enemy: BasicEnemy,
+    pub basic_enemies: Vec<BasicEnemy>,
     pub stage: HashMap<Uuid, Stage>,
     pub projectiles: Vec<Projectile>,
 
     pub debug_objects: Vec<crate::graphics::ResolveInstance>,
+}
+
+pub enum GameStateChange {
+    PlayerLose
 }
 
 impl World {
@@ -77,7 +81,7 @@ impl World {
         });
         Self {
             player,
-            basic_enemy,
+            basic_enemies: vec![basic_enemy],
             stage,
             debug_objects: vec![],
             projectiles: vec![],
@@ -111,6 +115,19 @@ impl World {
             self.projectiles.remove(i);
         }
 
+        // update enemies
+        let mut to_destroy = vec![];
+        for i in 0..self.basic_enemies.len() {
+            let obj = &mut self.basic_enemies[i];
+            obj.update(delta_time, &mut self.player);
+            if !obj.alive {
+                to_destroy.push(i);
+            }
+        }
+        for i in to_destroy.into_iter().rev() {
+            self.basic_enemies.remove(i);
+        }
+
         // let move_vec = {
         //     use VirtualKeyCode::*;
         //     Vector2::new(
@@ -122,13 +139,6 @@ impl World {
         // self.player.physics.velocity = move_vec;
         self.player.update(delta_time, input_state);
 
-        self.basic_enemy.update(delta_time);
-
-        // update
-        // for (id, object) in self.objects {
-        //     
-        // }
-
         self.physics(delta_time);
     }
 
@@ -136,7 +146,6 @@ impl World {
         // gather all who want to be physic'd
         let mut to_physics_on: Vec<&mut dyn Physics> = vec![
             &mut self.player,
-            &mut self.basic_enemy,
         ];
 
         // these two blocks look scuffed, i don't have time to make them elegant
@@ -155,6 +164,12 @@ impl World {
         // add projectiles
         to_physics_on.extend(
             self.projectiles
+            .iter_mut()
+            .map(|p| p as &mut dyn Physics)
+        );
+        // add enemies
+        to_physics_on.extend(
+            self.basic_enemies
             .iter_mut()
             .map(|p| p as &mut dyn Physics)
         );

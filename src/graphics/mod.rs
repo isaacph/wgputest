@@ -110,11 +110,6 @@ impl RenderEngine {
                     scale: world.player.physics.bounding_box.get_scale(),
                     color: cgmath::Vector4::new(0.0, 0.0, 0.0, 1.0),
                 },
-                Instance {
-                    position: world.basic_enemy.physics.bounding_box.center,
-                    scale: world.basic_enemy.physics.bounding_box.get_scale(),
-                    color: cgmath::Vector4::new(1.0, 0.0, 0.0, 1.0),
-                },
             ];
             instances.extend(world.stage.iter().map(|(_, stage)| stage.get_physics()).flatten().map(|(_, phys)|
                 Instance {
@@ -128,6 +123,13 @@ impl RenderEngine {
                     position: phys.bounding_box.center,
                     scale: phys.bounding_box.get_scale(),
                     color: cgmath::Vector4::new(1.0, 0.0, 0.0, 1.0),
+                })
+            );
+            instances.extend(world.basic_enemies.iter().map(|enemy| enemy.get_physics()).flatten().map(|(_, phys)|
+                Instance {
+                    position: phys.bounding_box.center,
+                    scale: phys.bounding_box.get_scale(),
+                    color: cgmath::Vector4::new(0.8, 0.0, 0.0, 1.0),
                 })
             );
             self.texture_renderer.render(render.queue, &mut render_pass, render.camera,

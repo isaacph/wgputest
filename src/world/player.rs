@@ -138,11 +138,7 @@ impl Player {
             velocity: Vector2::new(0.0, 0.0),
             can_move: true,
             typ: PhysObjType::Player,
-            collides_with: {
-                let mut x: HashSet<_> = vec![PhysObjType::Wall].into_iter().collect();
-                x.extend(ProjectileType::all().into_iter().map(|p| PhysObjType::Projectile(p)));
-                x
-            },
+            collides_with: PhysObjType::all(),
             move_by: vec![PhysObjType::Wall].into_iter().collect(),
         };
         Self {
@@ -496,7 +492,7 @@ impl Physics for Player {
         }
     }
 
-    fn resolve(&mut self, _: Uuid, delta: Vector2<f32>, resolve: Vector2<f32>, types: Vec<PhysObjType>) -> Vector2<f32> {
+    fn resolve(&mut self, _: Uuid, delta: Vector2<f32>, resolve: Vector2<f32>, types: Vec<(PhysObjType, Uuid)>) -> Vector2<f32> {
         self.physics.bounding_box.add(delta + resolve);
         if resolve.y < 0.0 {
             // on colliding with the ground

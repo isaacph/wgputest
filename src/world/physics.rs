@@ -25,7 +25,7 @@ impl PhysObjType {
 pub trait Physics: IDObject {
     fn get_physics(&self) -> Vec<(PhysicsID, PhysicsObject)>;
     fn pre_physics(&mut self);
-    fn resolve(&mut self, id: PhysicsID, delta: Vector2<f32>, resolve: Vector2<f32>, typ: Vec<PhysObjType>) -> Vector2<f32>;
+    fn resolve(&mut self, id: PhysicsID, delta: Vector2<f32>, resolve: Vector2<f32>, typ: Vec<(PhysObjType, Uuid)>) -> Vector2<f32>;
     fn typ(&self) -> PhysObjType;
 }
 
@@ -43,7 +43,7 @@ impl Physics for (Uuid, PhysicsObject) {
     fn pre_physics(&mut self) {
     }
 
-    fn resolve(&mut self, id: PhysicsID, delta: Vector2<f32>, resolve: Vector2<f32>, typ: Vec<PhysObjType>) -> Vector2<f32> {
+    fn resolve(&mut self, id: PhysicsID, delta: Vector2<f32>, resolve: Vector2<f32>, typ: Vec<(PhysObjType, Uuid)>) -> Vector2<f32> {
         Vector2::zero()
     }
 
@@ -64,7 +64,7 @@ pub struct PhysicsObject {
 
 type PhysicsID = Uuid;
 
-pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, Vector2<f32>, &mut PhysicsObject, Vec<PhysObjType>)>
+pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, Vector2<f32>, &mut PhysicsObject, Vec<(PhysObjType, Uuid)>)>
     (delta_time: f32, mut objects: HashMap<PhysicsID, PhysicsObject>, mut resolve: F) {
     //  for each moveable object
     //      move object in x direction
@@ -157,14 +157,14 @@ pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, Vector2<f32>, &mut PhysicsObje
                 // }
 
                 let overlap_types = overlappers.iter()
-                    .flat_map(|id| objects.get(id))
-                    .map(|obj| obj.typ).collect();
+                    .flat_map(|id| objects.get(id).map(|obj| (id, obj)))
+                    .map(|(id, obj)| (obj.typ, *id)).collect();
 
                 let obj = objects.get_mut(&id).unwrap();
                 resolve(id, delta, best_resolve, obj, overlap_types);
                 overlappers.iter().for_each(|id| {
                     objects.get_mut(id).map(|obj| {
-                        resolve(*id, Vector2::zero(), Vector2::zero(), obj, vec![obj_typ]);
+                        resolve(*id, Vector2::zero(), Vector2::zero(), obj, vec![(obj_typ, *id)]);
                     });
                 });
             }

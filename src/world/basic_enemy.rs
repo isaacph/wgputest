@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use cgmath::{Vector2, Vector4};
 use uuid::Uuid;
 use winit::event::VirtualKeyCode;
-use crate::{bounding_box::BoundingBox, InputState};
-use super::{GameObject, IDObject, Physics, physics::{PhysicsObject, PhysObjType}, projectile::{Projectile, ProjectileType}};
+use crate::{bounding_box::BoundingBox, InputState, util::is_goomba_stomping};
+use super::{GameObject, IDObject, Physics, physics::{PhysicsObject, PhysObjType}, projectile::{Projectile, ProjectileType}, World, player::Player, GameStateChange};
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum AerialState {
@@ -47,6 +47,8 @@ pub struct BasicEnemy {
     pub physics: PhysicsObject,
     pub aerial_state: AerialState,
     pub direction: Direction,
+    resolved_on: Vec<Uuid>,
+    pub alive: bool,
 }
 
 impl BasicEnemy {
@@ -69,11 +71,7 @@ impl BasicEnemy {
             velocity: Vector2::new(0.0, 0.0),
             can_move: true,
             typ: super::physics::PhysObjType::Enemy,
-            collides_with: {
-                let mut x: HashSet<_> = vec![PhysObjType::Wall].into_iter().collect();
-                x.extend(ProjectileType::all().into_iter().map(|p| PhysObjType::Projectile(p)));
-                x
-            },
+            collides_with: PhysObjType::all(),
             move_by: vec![PhysObjType::Wall].into_iter().collect(),
         };
         Self {
@@ -81,10 +79,12 @@ impl BasicEnemy {
             physics,
             aerial_state: AerialState::Falling,
             direction: Direction::Left,
+            resolved_on: vec![],
+            alive: true,
         }
     }
 
-    pub fn update(&mut self, delta_time: f32) {
+    pub fn update(&mut self, delta_time: f32, player: &mut Player) -> Option<GameStateChange> {
         let jumping = false;
         let hold_jump = false;
 
@@ -152,6 +152,25 @@ impl BasicEnemy {
         } else {
             self.physics.velocity.x += f32::signum(target_vel_x - self.physics.velocity.x) * accel_x;
         }
+
+        // check if any resolved_ons are goomba-stomping players
+        return self.resolved_on.iter().fold(None, |state_change, id| {
+            if state_change.is_some() {
+                return state_change
+            }
+            if *id == player.get_uuid() {
+                // player in contact
+                if is_goomba_stomping(&player.physics.bounding_box, &self.physics.bounding_box) {
+                    self.alive = false;
+                    player.physics.velocity.y = -6.0;
+                    // insert any other blessings/curses here
+                } else {
+                    println!("player lose");
+                    return Some(GameStateChange::PlayerLose)
+                }
+            }
+            None
+        });
     }
 }
 
@@ -173,9 +192,10 @@ impl Physics for BasicEnemy {
         if self.aerial_state == AerialState::OnGround {
             self.aerial_state = AerialState::Falling;
         }
+        self.resolved_on = vec![];
     }
 
-    fn resolve(&mut self, _: Uuid, delta: Vector2<f32>, resolve: Vector2<f32>, types: Vec<PhysObjType>) -> Vector2<f32> {
+    fn resolve(&mut self, _: Uuid, delta: Vector2<f32>, resolve: Vector2<f32>, types: Vec<(PhysObjType, Uuid)>) -> Vector2<f32> {
         self.physics.bounding_box.add(delta + resolve);
         if resolve.y < 0.0 {
             // on colliding with the ground
@@ -191,12 +211,13 @@ impl Physics for BasicEnemy {
             self.physics.velocity.x *= -1.0;
             self.direction = self.direction.reverse();
         }
-        if types.iter().find(|t| match t {
+        if types.iter().find(|(t, _)| match t {
             PhysObjType::Projectile(_) => true,
             _ => false
         }).is_some() {
             self.physics.velocity.y = -10.0;
         }
+        self.resolved_on.extend(types.into_iter().map(|(_, id)| id));
         delta + resolve
     }
 

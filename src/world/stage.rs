@@ -62,7 +62,7 @@ impl Physics for Stage {
     fn pre_physics(&mut self) {
     }
 
-    fn resolve(&mut self, _: Uuid, delta: Vector2<f32>, resolve: Vector2<f32>, _: Vec<PhysObjType>) -> Vector2<f32> {
+    fn resolve(&mut self, _: Uuid, delta: Vector2<f32>, resolve: Vector2<f32>, _: Vec<(PhysObjType, Uuid)>) -> Vector2<f32> {
         cgmath::Vector2::zero()
     }
 

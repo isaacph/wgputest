@@ -1,3 +1,5 @@
+use crate::bounding_box::BoundingBox;
+
 
 pub trait PartialOrdMinMax<P: PartialOrd> {
     fn partial_max(self) -> Option<P>;
@@ -36,3 +38,11 @@ impl<T, P> PartialOrdMinMax<P> for T
     }
 }
 
+// scuffed
+pub fn is_goomba_stomping(stomper: &BoundingBox, stompee: &BoundingBox) -> bool {
+    if stompee.center.y - stomper.center.y > (stomper.height / 2.0 + stompee.height / 2.0) * 0.8 {
+        true
+    } else {
+        false
+    }
+}
