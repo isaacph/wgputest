@@ -18,6 +18,7 @@ instant = "0.1"
 # freetype-sys = { version = "0.15.0" }
 fontdue = "0.7.2"
 itertools = "0.10.5"
+rodio = "0.16.0"
 
 # webassembly dependency
 cfg-if = "1"

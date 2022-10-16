@@ -1,3 +1,4 @@
+use audio::Audio;
 use cgmath::{Vector2, Zero, Point2, EuclideanSpace, Vector4};
 use chatbox::Chatbox;
 use graphics::{RenderEngine, text::BaseFontInfoContainer};
@@ -24,6 +25,7 @@ mod graphics;
 mod world;
 pub mod util;
 pub mod chatbox;
+pub mod audio;
 
 #[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
 pub async fn run() {
@@ -135,6 +137,8 @@ pub struct State {
     pub chatbox: Chatbox,
     pub focus_mode: FocusMode,
     pub game_state: GameState,
+
+    pub audio: Audio,
 }
 
 pub struct InputState {
@@ -207,6 +211,9 @@ impl State {
         let render_engine = RenderEngine::init(&device, &queue, &config);
         let chatbox = Chatbox::new(render_engine.font.get_metrics_info(), 7, 38.0, 7, 800.0);
 
+        let mut audio = Audio::new();
+        audio.play(audio::Song::Church);
+
         Self {
             surface,
             device,
@@ -231,6 +238,7 @@ impl State {
             chatbox,
             focus_mode: FocusMode::Default,
             game_state: GameState::Game,
+            audio,
         }
     }
 
