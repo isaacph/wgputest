@@ -7,12 +7,13 @@ use super::{physics::{PhysicsObject, Physics, PhysObjType}, GameObject, IDObject
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ProjectileType {
-    Basic
+    Basic,
+    Slowing
 }
 impl ProjectileType {
     pub fn all() -> Vec<ProjectileType> {
         use ProjectileType::*;
-        vec![Basic]
+        vec![Basic, Slowing]
     }
 }
 
@@ -29,8 +30,7 @@ pub struct Projectile {
 
 impl Projectile {
     // initialize with position, scale, and color -- velocity and acceleration should be 0 when starting
-    pub fn new(position: Vector2<f32>, velocity: Vector2<f32>, collides_with: PhysObjType) -> Self {
-        let typ = ProjectileType::Basic;
+    pub fn new(position: Vector2<f32>, velocity: Vector2<f32>, typ: ProjectileType, collides_with: PhysObjType) -> Self {
         let physics = PhysicsObject {
             bounding_box: BoundingBox::new(position, 0.2, 0.2),
             velocity,

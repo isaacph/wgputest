@@ -42,11 +42,25 @@ impl Direction {
     }
 }
 
+pub struct CurseState {
+    // target speed multiplier
+    pub slowdown: f32
+}
+
+impl CurseState {
+    pub fn new() -> Self {
+        Self {
+            slowdown: 1.0,
+        }
+    }
+}
+
 pub struct BasicEnemy {
     id: Uuid,
     pub physics: PhysicsObject,
     pub aerial_state: AerialState,
     pub direction: Direction,
+    pub curse_state: CurseState, 
     resolved_on: Vec<Uuid>,
     pub alive: bool,
 }
@@ -60,7 +74,7 @@ impl BasicEnemy {
     const ACCEL_Y: f32 = 22.0;
 
     const ACCEL_X: f32 = 22.0;
-    const MOVE_SPEED_X: f32 = 1.0;
+    const MOVE_SPEED_X: f32 = 5.0;
     const VELOCITY_ON_GROUND_MULTIPLIER_X: f32 = 2.0;
     const ACCEL_ON_GROUND_MULTIPLIER_X: f32 = 2.0;
 
@@ -79,6 +93,7 @@ impl BasicEnemy {
             physics,
             aerial_state: AerialState::Falling,
             direction: Direction::Left,
+            curse_state: CurseState::new(),
             resolved_on: vec![],
             alive: true,
         }
@@ -136,7 +151,7 @@ impl BasicEnemy {
                 Self::VELOCITY_ON_GROUND_MULTIPLIER_X,
             AerialState::Falling | AerialState::Jumping(_) =>
                 1.0,
-        } * self.direction.to_f32() * Self::MOVE_SPEED_X;
+        } * self.direction.to_f32() * Self::MOVE_SPEED_X * self.curse_state.slowdown;
 
         // find acceleration in x
         let accel_x = match self.aerial_state {
@@ -211,11 +226,16 @@ impl Physics for BasicEnemy {
             self.physics.velocity.x *= -1.0;
             self.direction = self.direction.reverse();
         }
-        if types.iter().find(|(t, _)| match t {
-            PhysObjType::Projectile(_) => true,
+
+        let projectile_interaction = types.iter().find(|(t, _)| match t {
+            PhysObjType::Projectile(ProjectileType::Basic) => true,
+            PhysObjType::Projectile(ProjectileType::Slowing) => true,
             _ => false
-        }).is_some() {
-            self.physics.velocity.y = -10.0;
+        });
+        match projectile_interaction {
+            Some((PhysObjType::Projectile(ProjectileType::Basic), _)) => self.physics.velocity.y = -10.0,
+            Some((PhysObjType::Projectile(ProjectileType::Slowing), _)) => self.curse_state.slowdown *= 0.75,
+            _ => ()
         }
         self.resolved_on.extend(types.into_iter().map(|(_, id)| id));
         delta + resolve

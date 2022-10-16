@@ -98,7 +98,8 @@ impl World {
                 let vel = dir.normalize() * 10.0;
                 self.projectiles.push(
                     Projectile::new(self.player.physics.bounding_box.center,
-                                    vel, physics::PhysObjType::Enemy));
+                        // originally Basic projectile
+                                    vel, projectile::ProjectileType::Slowing, physics::PhysObjType::Enemy));
             }
         }
 
