@@ -1,13 +1,8 @@
-use std::ops::Add;
-
-use cgmath::{Vector2, Vector4, prelude::InnerSpace};
-use crate::graphics::textured::Instance;
+use cgmath::Vector2;
 use crate::bounding_box::BoundingBox;
-use winit::event::{WindowEvent, KeyboardInput, ElementState, VirtualKeyCode};
-use uuid::{uuid, Uuid};
+use uuid::Uuid;
 use std::collections::HashMap;
 use player::Player;
-
 use self::physics::{PhysicsObject, Physics};
 
 // pub mod basic_enemy;
@@ -156,8 +151,7 @@ pub struct World {
 impl World {
     pub fn new() -> Self {
         let player = Player::new(
-            Vector2::new(0.0, 0.0),
-            Vector2::new(1.0, 1.0),
+            Vector2::new(0.0, 0.0)
         );
 
         let stage_left = Stage::new(
@@ -176,8 +170,8 @@ impl World {
         );
 
         let stage_down = Stage::new(
-            Vector2::new(0.0, -1.0),
-            Vector2::new(1.0, 0.25),
+            Vector2::new(0.0, 5.0),
+            Vector2::new(5.0, 0.25),
         );
         let stage = vec![stage_left, stage_right, stage_top, stage_down];
 

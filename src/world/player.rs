@@ -24,16 +24,16 @@ pub struct Player {
 }
 
 impl Player {
-    const JUMP_SPEED: f32 = 2.0;
-    const JUMP_HOLD_TIMER_MAX: f32 = 0.5;
-    const JUMP_HOLD_TIMER_MIN: f32 = 0.3;
+    const JUMP_SPEED: f32 = 4.0;
+    const JUMP_HOLD_TIMER_MAX: f32 = 0.3;
+    const JUMP_HOLD_TIMER_MIN: f32 = 0.15;
 
     const FALL_SPEED: f32 = 5.0;
-    const PLAYER_ACCEL_Y: f32 = 8.0;
+    const PLAYER_ACCEL_Y: f32 = 22.0;
     // initialize with position, scale, and color -- velocity and acceleration should be 0 when starting
-    pub fn new(position: Vector2<f32>, scale: Vector2<f32>) -> Self {
+    pub fn new(position: Vector2<f32>) -> Self {
         let physics = PhysicsObject {
-            bounding_box: BoundingBox::new(position, scale.x, scale.y),
+            bounding_box: BoundingBox::new(position, 1.0, 1.0),
             velocity: Vector2::new(0.0, 0.0),
             can_move: true,
         };

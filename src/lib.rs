@@ -182,7 +182,7 @@ impl State {
         //     texture::Texture::from_image(&device, &queue, &diffuse_image_2, "keyboard").unwrap();
 
         // camera
-        let camera = camera::Camera::new(cgmath::Vector2::new(size.width, size.height), 5.0);
+        let camera = camera::Camera::new(cgmath::Vector2::new(size.width, size.height), 10.0);
         let camera_controller = camera::CameraController::new(1.0);
 
         let render_engine = RenderEngine::init(&device, &queue, &config);
