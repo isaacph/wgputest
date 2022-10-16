@@ -20,6 +20,24 @@ pub struct RenderEngine {
     font_renderer: FontRenderer,
 }
 
+#[derive(Clone)]
+pub struct ResolveInstance {
+    pub position: cgmath::Vector2<f32>,
+    pub scale: cgmath::Vector2<f32>,
+    pub color: cgmath::Vector4<f32>,
+    pub overlaps: i32,
+}
+
+impl Into<Instance> for ResolveInstance {
+    fn into(self) -> Instance {
+        Instance {
+            position: self.position,
+            scale: self.scale,
+            color: self.color
+        }
+    }
+}
+
 impl RenderEngine {
     pub fn init(device: &wgpu::Device, queue: &wgpu::Queue, config: &wgpu::SurfaceConfiguration) -> RenderEngine {
         // load a texture - happy tree
@@ -100,18 +118,24 @@ impl RenderEngine {
                        &self.solid_texture
                    ),
                    (
-                       world.debug_objects.clone(),
+                       world.debug_objects.iter().map(|i| i.clone().into()).collect(),
                        &self.solid_texture
                    ),
                 ])?;
 
             let text = format!("Text");
+            let font_instances = vec![(text.clone(),
+                    cgmath::Vector2::new(0.0, 32.0),
+                    cgmath::Vector4::new(1.0, 0.5, 1.0, 1.0))];
+            // font_instances.extend(world.debug_objects.iter().map(|i| {
+            //     (
+            //         format!("{}", i.overlaps),
+            //         render.camera.world_to_view_pos(cgmath::Point2::new(0.0, 0.0) + i.position),
+            //         cgmath::Vector4::new(i.color.x, i.color.y, i.color.z, 0.8)
+            //     )
+            // }));
             self.font_renderer.render(&self.font, render.queue, &mut render_pass, &render.camera,
-                  &vec![
-                (text.clone(),
-                cgmath::Vector2::new(0.0, 32.0),
-                cgmath::Vector4::new(1.0, 0.5, 1.0, 1.0)),
-            ])?;
+                &font_instances)?;
         }
 
         // submit will accept anything that implements IntoIter

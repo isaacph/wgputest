@@ -73,53 +73,41 @@ impl BoundingBox {
     }
  
     pub fn calculate_resolve_options(&self, b : &BoundingBox) -> Vec<Option<Vector2<f32> > > {
-        let get_x_resolves = |a : &BoundingBox, b : &BoundingBox| -> Vector2<Option<Vector2<f32> > > {
+        let get_x_resolves = |a : &BoundingBox, b : &BoundingBox| -> Vec<Option<Vector2<f32> > > {
             let mut left_resolve: Option<Vector2<f32> > = None;
             let mut right_resolve: Option<Vector2<f32> > = None; 
             // the resolution goes to the right: intersection is on the left, and the added position is rightward facing to account for that
-            if a.center.x - a.width / 2.0 < b.center.x + b.width / 2.0 
-                && b.center.x - b.width / 2.0 < a.center.x - a.width / 2.0 {
-                left_resolve = Some(Vector2::new(
-                    a.center.x + (b.center.x + b.width / 2.0 - (a.center.x - a.width / 2.0)), 
-                    a.center.y)
-                );
-            }
-            else if b.center.x - b.width / 2.0 < a.center.x + a.width / 2.0 
-                && a.center.x - a.width / 2.0 < b.center.x - b.width / 2.0 {
-                right_resolve = Some(Vector2::new(
-                    a.center.x + (a.center.x + a.width / 2.0 - (b.center.x - b.width / 2.0)), 
-                    a.center.y)
-                );
-            }
+            left_resolve = Some(Vector2::new(
+                (b.center.x - a.center.x) - a.width / 2.0 - b.width / 2.0 - BoundingBox::RESOLVE_OFFSET, 
+                0.0)
+            );
+            right_resolve = Some(Vector2::new(
+                (b.center.x - a.center.x) + a.width / 2.0 + b.width / 2.0 + BoundingBox::RESOLVE_OFFSET, 
+                0.0)
+            );
 
-            Vector2::new(left_resolve, right_resolve)
+            vec![left_resolve, right_resolve]
         };
 
-        let get_y_resolves = |a : &BoundingBox, b : &BoundingBox| -> Vector2<Option<Vector2<f32> > > {
+        let get_y_resolves = |a : &BoundingBox, b : &BoundingBox| -> Vec<Option<Vector2<f32> > > {
             let mut down_resolve: Option<Vector2<f32> > = None;
             let mut up_resolve: Option<Vector2<f32> > = None;  
-            if a.center.y - a.height / 2.0 < b.center.y + b.height / 2.0 
-                && b.center.y - b.height / 2.0 < a.center.y - a.height / 2.0 {
-                down_resolve = Some(Vector2::new(
-                    a.center.y,
-                    a.center.y + (b.center.y + b.height / 2.0 - (a.center.y - a.height / 2.0)), 
-                ));
-            }
-            else if b.center.y - b.height / 2.0 < a.center.y + a.height / 2.0 
-                && a.center.y - a.height / 2.0 < b.center.y - b.height / 2.0 {
-                up_resolve = Some(Vector2::new(
-                    a.center.y + (a.center.y + a.height / 2.0 - (b.center.y - b.height / 2.0)), 
-                    a.center.y)
-                );
-            }
+                   down_resolve = Some(Vector2::new(
+                       0.0,
+                       (b.center.y - a.center.y) + a.height / 2.0 + b.height / 2.0 + BoundingBox::RESOLVE_OFFSET
+                   ));
+                   up_resolve = Some(Vector2::new(
+                       0.0,
+                       (b.center.y - a.center.y) - a.height / 2.0 - b.height / 2.0 - BoundingBox::RESOLVE_OFFSET
+                   ));
 
-            Vector2::new(down_resolve, up_resolve)
+            vec![down_resolve, up_resolve]
         };
 
         let x_resolves = get_x_resolves(self, b);
         let y_resolves = get_y_resolves(self, b);
 
-        return vec![x_resolves[0], x_resolves[1], y_resolves[0], y_resolves[1]];
+        return vec![x_resolves, y_resolves].into_iter().flatten().collect();
     }
 
     // returns empty vector if no intersection detected.
