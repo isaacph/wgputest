@@ -301,7 +301,7 @@ impl State {
         }
         let relevant_inputs = {
             use VirtualKeyCode::*;
-            vec![A, S, D, W, E, Space, LShift]
+            vec![Key1, Key2, A, S, D, W, E, Space, LShift]
         };
         if !self.camera_controller.process_events(event) {
             match *event {

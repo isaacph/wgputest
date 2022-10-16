@@ -116,6 +116,8 @@ pub struct Player {
     pub direction: Direction,
     pub aerial_state: AerialState,
     pub horizontal_state: HorizontalState,
+    pub alive: bool,
+    pub current_projectile: usize,
 }
 
 impl Player {
@@ -147,7 +149,9 @@ impl Player {
             physics,
             direction: Direction::Right,
             aerial_state: AerialState::Falling,
-            horizontal_state: HorizontalState::Stopped
+            horizontal_state: HorizontalState::Stopped,
+            alive: true,
+            current_projectile: 1,
         }
     }
 
@@ -306,6 +310,21 @@ impl Player {
     }
 
     pub fn update(&mut self, delta_time: f32, input_state: &InputState) {
+        // update projectile type
+        self.current_projectile = match (input_state.key_pos_edge.contains(&VirtualKeyCode::Key1),
+                                        input_state.key_pos_edge.contains(&VirtualKeyCode::Key2),
+                                        input_state.key_down.contains(&VirtualKeyCode::Key1),
+                                        input_state.key_down.contains(&VirtualKeyCode::Key2)) {
+            (true, _, _, _)
+            | (_, _, true, _) => 0,
+
+            (_, true, _, _)
+            | (_, _, _, true) => 0,
+
+            (_, _, _, _) => self.current_projectile
+        };
+
+
         self.direction = match (input_state.key_pos_edge.contains(&VirtualKeyCode::A),
                                 input_state.key_pos_edge.contains(&VirtualKeyCode::D),
                                 input_state.key_down.contains(&VirtualKeyCode::A),

@@ -36,10 +36,10 @@ pub enum GameStateChange {
 impl World {
     pub fn new() -> Self {
         let player = Player::new(
-            Vector2::new(0.0, 0.0)
+            Vector2::new(-2.0, 2.0)
         );
         let basic_enemy = BasicEnemy::new(
-            Vector2::new(2.0, 0.0)
+            Vector2::new(2.0, 2.0)
         );
 
         // let stage_left = Stage::new(
@@ -74,6 +74,7 @@ impl World {
             stage.set_tile(&Vector2::new(2, 3), Some(TileType::Dirt));
             stage.set_tile(&Vector2::new(1, 3), Some(TileType::Dirt));
             stage.set_tile(&Vector2::new(0, 3), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(0, 2), Some(TileType::Dirt));
             stage.set_tile(&Vector2::new(-1, 3), Some(TileType::Dirt));
             stage.set_tile(&Vector2::new(-2, 3), Some(TileType::Dirt));
             stage.set_tile(&Vector2::new(-3, 3), Some(TileType::Dirt));
@@ -91,14 +92,15 @@ impl World {
     // don't we need a thing to tell it how much to change?
     pub fn update(&mut self, delta_time: f32, input_state: &crate::InputState) {
         // fire projectiles
-        if input_state.mouse_pos_edge.contains(&MouseButton::Left) {
+        if self.player.alive && input_state.mouse_pos_edge.contains(&MouseButton::Left) {
             let mouse_pos = input_state.mouse_position;
             let dir = mouse_pos - self.player.physics.bounding_box.center;
             if dir.magnitude2() != 0.0 {
                 let vel = dir.normalize() * 10.0;
                 self.projectiles.push(
                     Projectile::new(self.player.physics.bounding_box.center,
-                                    vel, physics::PhysObjType::Enemy));
+                        // originally Basic projectile
+                                    vel, projectile::ProjectileType::all()[self.player.current_projectile], physics::PhysObjType::Enemy));
             }
         }
 
@@ -137,7 +139,9 @@ impl World {
         // };
         // // move player by move vec
         // self.player.physics.velocity = move_vec;
-        self.player.update(delta_time, input_state);
+        if self.player.alive {
+            self.player.update(delta_time, input_state);
+        }
 
         self.physics(delta_time);
     }
