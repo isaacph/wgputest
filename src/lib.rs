@@ -320,6 +320,10 @@ impl State {
                         self.chatbox.set_typing_flicker(true);
                         true
                     },
+                    VirtualKeyCode::R => {
+                        self.world = World::new();
+                        true
+                    },
                     _ => {
                         if relevant_inputs.contains(&key) {
                             match state {
