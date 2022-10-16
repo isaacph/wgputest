@@ -10,14 +10,14 @@ pub enum Direction {
     Left, Right
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum AerialState {
     Jumping(f32),
     Falling,
     OnGround
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum HorizontalState {
     MovingLeft,
     MovingRight,
@@ -44,8 +44,9 @@ impl Player {
 
     const PLAYER_MOVE_SPEED_X: f32 = 7.0;
     const PLAYER_ACCEL_X: f32 = 16.0;
-    const PLAYER_STOPPING_MULTIPLIER_X: f32 = 2.5;
-    const PLAYER_TURNAROUND_MULTIPLIER_X: f32 = 12.0; 
+    // const PLAYER_STOPPING_MULTIPLIER_X: f32 = 1.0;
+    const PLAYER_ON_GROUND_MULTIPLIER_X: f32 = 2.0;
+    const PLAYER_TURNAROUND_MULTIPLIER_X: f32 = 14.0; 
     // initialize with position, scale, and color -- velocity and acceleration should be 0 when starting
     pub fn new(position: Vector2<f32>) -> Self {
         let physics = PhysicsObject {
@@ -107,20 +108,34 @@ impl Player {
                                 input_state.key_down.contains(&VirtualKeyCode::D),
                                 self.horizontal_state.clone() 
         ) {
+            //  BUG: this still lets the player vibrate back and forth slowly towards one direction
+            //       reproduce by pressing both A, D together
+            (_, _, true, true, state) if state != HorizontalState::Stopped => HorizontalState::Stopping, 
+            // inputting A while moving right initiates turning
+            (true, false, _, _, HorizontalState::MovingRight)
+            | (_, _, true, false, HorizontalState::MovingRight) => HorizontalState::TurningLeft,
+            // inputting D while moving left initiates turning
+            (false, true, _, _, HorizontalState::MovingLeft)
+            | (_, _, false, true, HorizontalState::MovingLeft) => HorizontalState::TurningRight,
+
             (true, false, _, _, HorizontalState::MovingLeft) 
             | (true, false, _, _, HorizontalState::TurningRight) 
             | (true, false, _, _, HorizontalState::Stopping) 
-            | (true, false, _, _, HorizontalState::Stopped) => HorizontalState::MovingLeft,
+            | (true, false, _, _, HorizontalState::Stopped)
+            | (_, _, true, false, HorizontalState::MovingLeft)
+            | (_, _, true, false, HorizontalState::TurningRight)
+            | (_, _, true, false, HorizontalState::Stopping)
+            | (_, _, true, false, HorizontalState::Stopped) => HorizontalState::MovingLeft,
 
             (false, true, _, _, HorizontalState::MovingRight) 
             | (false, true, _, _, HorizontalState::TurningLeft) 
             | (false, true, _, _, HorizontalState::Stopping) 
-            | (false, true, _, _, HorizontalState::Stopped) => HorizontalState::MovingRight,
+            | (false, true, _, _, HorizontalState::Stopped)
+            | (_, _, false, true, HorizontalState::MovingRight) 
+            | (_, _, false, true, HorizontalState::TurningLeft) 
+            | (_, _, false, true, HorizontalState::Stopping)
+            | (_, _, false, true, HorizontalState::Stopped) => HorizontalState::MovingRight,
 
-            // inputting A while moving right initiates turning
-            (true, false, _, _, HorizontalState::MovingRight) => HorizontalState::TurningLeft,
-            // inputting D while moving left initiates turning
-            (false, true, _, _, HorizontalState::MovingLeft) => HorizontalState::TurningRight,
 
             // no inputs is stopping unless stoped
             (false, false, false, false, state) if state != HorizontalState::Stopped => HorizontalState::Stopping,
@@ -150,32 +165,66 @@ impl Player {
         }
 
         // find player's ability to self-accelerate x
-        let accel_x = if self.horizontal_state == HorizontalState::Stopping {
-            delta_time * Player::PLAYER_ACCEL_X * Player::PLAYER_STOPPING_MULTIPLIER_X   
+        // when aerial state is OnGround, physics should feel snappier -- higher acceleration
+        let accel_x = if self.aerial_state == AerialState::OnGround 
+         && (self.horizontal_state == HorizontalState::TurningLeft 
+            || self.horizontal_state == HorizontalState::TurningRight 
+            || self.horizontal_state == HorizontalState::Stopping){
+            delta_time * Player::PLAYER_ACCEL_X * Player::PLAYER_ON_GROUND_MULTIPLIER_X   
         } else {
             delta_time * Player::PLAYER_ACCEL_X
         };
+        // let accel_x = delta_time * Player::PLAYER_ACCEL_X;
 
         // find target velocity x
-        let mut target_vel_x = 0.0;
+        // let mut target_vel_x = 0.0;
         
-        if input_state.key_down.contains(&VirtualKeyCode::D) &&
-            !input_state.key_down.contains(&VirtualKeyCode::A) {
-            // make turning faster than going in the same direction -- less slipppery 
-            if target_vel_x < 0.0 {
-                target_vel_x += Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X;
-            }
-            // strafe right
-            target_vel_x += Player::PLAYER_MOVE_SPEED_X;
-        }
-        if input_state.key_down.contains(&VirtualKeyCode::A) &&
-            !input_state.key_down.contains(&VirtualKeyCode::D) {
-            if target_vel_x > 0.0 {
-                target_vel_x -= Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X;
-            }
-            // strafe left
-            target_vel_x -= Player::PLAYER_MOVE_SPEED_X;
-        }
+        // let target_vel_x = match (self.horizontal_state, self.aerial_state) {
+        //     // when aerial state is OnGround, physics should feel snappier -- higher velocities 
+        //     (HorizontalState::MovingLeft, AerialState::OnGround) => -Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_ON_GROUND_MULTIPLIER_X,
+        //     (HorizontalState::MovingLeft, _) => -Player::PLAYER_MOVE_SPEED_X,
+
+        //     (HorizontalState::TurningLeft, AerialState::OnGround) => -Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X * Player::PLAYER_ON_GROUND_MULTIPLIER_X,
+        //     (HorizontalState::TurningLeft, _) => -Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X,
+
+        //     (HorizontalState::MovingRight, AerialState::OnGround) => Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_ON_GROUND_MULTIPLIER_X,
+        //     (HorizontalState::MovingRight, _) => Player::PLAYER_MOVE_SPEED_X,
+
+        //     (HorizontalState::TurningRight, AerialState::OnGround) => Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X * Player::PLAYER_ON_GROUND_MULTIPLIER_X,
+        //     (HorizontalState::TurningRight, _) => Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X,
+
+        //     (_, _) => 0.0
+        // };
+
+        let target_vel_x = match self.horizontal_state {
+            HorizontalState::MovingLeft => -Player::PLAYER_MOVE_SPEED_X,
+            HorizontalState::TurningLeft => -Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X,
+            HorizontalState::MovingRight => Player::PLAYER_MOVE_SPEED_X,
+            HorizontalState::TurningRight => Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X,
+            _ => 0.0
+        };
+
+        // if input_state.key_down.contains(&VirtualKeyCode::D) &&
+        //     !input_state.key_down.contains(&VirtualKeyCode::A) {
+        //     // make turning faster than going in the same direction -- less slippery 
+        //     if target_vel_x < 0.0 {
+        //         target_vel_x += if self.aerial_state == AerialState::OnGround {
+        //             Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X * ;
+        //         } else {
+        //             Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X;
+        //         }
+        //     }
+        //     // strafe right
+        //     target_vel_x += Player::PLAYER_MOVE_SPEED_X;
+        // }
+        // if input_state.key_down.contains(&VirtualKeyCode::A) &&
+        //     !input_state.key_down.contains(&VirtualKeyCode::D) {
+        //     if target_vel_x > 0.0 {
+        //         target_vel_x -= Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X;
+        //     }
+        //     // strafe left
+        //     target_vel_x -= Player::PLAYER_MOVE_SPEED_X;
+        // }
 
         // move player to match target velocity x
         if f32::abs(self.physics.velocity.x - target_vel_x) < accel_x {
@@ -183,6 +232,46 @@ impl Player {
         } else {
             self.physics.velocity.x += f32::signum(target_vel_x - self.physics.velocity.x) * accel_x;
         }
+
+        // update horizontal state depending on current velocity sign, target velocity sign, and state
+        self.horizontal_state = match (self.physics.velocity.x, target_vel_x) {
+            (current, target) if current > 0.0 && target < 0.0 
+            => HorizontalState::TurningLeft,
+
+            (current, target) if current > 0.0 && target > 0.0 
+            => HorizontalState::MovingRight,
+
+            (current, target) if current < 0.0 && target > 0.0 
+            => HorizontalState::TurningRight,
+
+            (current, target) if current < 0.0 && target < 0.0
+                => HorizontalState::MovingLeft,
+            
+            (current, target) if current != 0.0 && target == 0.0
+                => HorizontalState::Stopping,
+
+            (current, target) if current == 0.0 && target == 0.0
+                => HorizontalState::Stopped,
+
+            (_, _) => self.horizontal_state
+        };
+        
+        // if self.physics.velocity.x > 0.0 {
+        //     self.horizontal_state = if self.horizontal_state == HorizontalState::TurningRight || self.horizontal_state == HorizontalState::MovingLeft {
+        //         HorizontalState::TurningRight
+        //     } else {
+        //         HorizontalState::MovingRight
+        //     };
+        // } else if self.physics.velocity.x < 0.0 {
+        //     self.horizontal_state = if self.horizontal_state == HorizontalState::TurningLeft || self.horizontal_state == HorizontalState::MovingRight {
+        //         HorizontalState::TurningLeft
+        //     } else {
+        //         HorizontalState::MovingLeft
+        //     };
+        // } else {
+        //     self.horizontal_state = HorizontalState::Stopped;
+        // }
+
     }
 }
 

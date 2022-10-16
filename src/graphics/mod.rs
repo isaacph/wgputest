@@ -136,6 +136,21 @@ impl RenderEngine {
             // }));
             self.font_renderer.render(&self.font, render.queue, &mut render_pass, &render.camera,
                 &font_instances)?;
+            
+            // copying code above for the purpose of horizontal info
+            let text = format!("{:?}\n{}", world.player.horizontal_state, world.player.physics.velocity.x);
+            let font_instances = vec![(text.clone(),
+                    cgmath::Vector2::new(400.0, 38.0),
+                    cgmath::Vector4::new(1.0, 0.5, 1.0, 1.0))];
+            // font_instances.extend(world.debug_objects.iter().map(|i| {
+            //     (
+            //         format!("{}", i.overlaps),
+            //         render.camera.world_to_view_pos(cgmath::Point2::new(0.0, 0.0) + i.position),
+            //         cgmath::Vector4::new(i.color.x, i.color.y, i.color.z, 0.8)
+            //     )
+            // }));
+            self.font_renderer.render(&self.font, render.queue, &mut render_pass, &render.camera,
+                &font_instances)?;
         }
 
         // submit will accept anything that implements IntoIter
