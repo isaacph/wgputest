@@ -1,13 +1,15 @@
-use cgmath::Vector2;
-use crate::bounding_box::BoundingBox;
+use cgmath::{Vector2, Vector4};
+use winit::event::MouseButton;
+use crate::{bounding_box::BoundingBox, graphics::ResolveInstance};
 use uuid::Uuid;
 use std::collections::HashMap;
 use player::Player;
-use self::physics::{PhysicsObject, Physics};
+use self::{physics::{PhysicsObject, Physics}, stage::Stage};
 
 // pub mod basic_enemy;
 pub mod player;
 pub mod physics;
+pub mod stage;
 
 pub trait IDObject {
     fn get_uuid(&self) -> Uuid;
@@ -83,11 +85,11 @@ impl IDObject for Projectile {
 }
 
 impl Physics for Projectile {
-    fn get_physics(&self) -> Option<(Uuid, PhysicsObject)> {
-        Some((self.id, self.physics.clone()))
+    fn get_physics(&self) -> Vec<(Uuid, PhysicsObject)> {
+        vec![(self.id, self.physics.clone())]
     }
 
-    fn resolve(&mut self, delta: Vector2<f32>, resolve: Vector2<f32>) -> Vector2<f32> {
+    fn resolve(&mut self, _: Uuid, delta: Vector2<f32>, resolve: Vector2<f32>) -> Vector2<f32> {
         self.physics.bounding_box.add(delta + resolve);
         delta + resolve
     }
@@ -96,54 +98,11 @@ impl Physics for Projectile {
     }
 }
 
-pub struct Stage {
-    id: Uuid,
-    pub physics: PhysicsObject
-}
-
-
-impl Stage {
-    // initialize with position, scale, and color -- velocity and acceleration should be 0 when starting
-    pub fn new(position: Vector2<f32>, scale: Vector2<f32>) -> Self {
-        let physics = PhysicsObject {
-            bounding_box: BoundingBox::new(position, scale.x, scale.y),
-            velocity: Vector2::new(0.0, 0.0),
-            can_move: false
-        };
-        Self {
-            id: Uuid::new_v4(),
-            physics,
-        }
-    }
-}
-
-impl GameObject for Stage {
-}
-
-impl IDObject for Stage {
-    fn get_uuid(&self) -> Uuid {
-        return self.id;
-    }
-}
-
-impl Physics for Stage {
-    fn get_physics(&self) -> Option<(Uuid, PhysicsObject)> {
-        Some((self.id, self.physics.clone()))
-    }
-
-    fn resolve(&mut self, delta: Vector2<f32>, resolve: Vector2<f32>) -> Vector2<f32> {
-        self.physics.bounding_box.add(delta + resolve);
-        delta + resolve
-    }
-
-    fn pre_physics(&mut self) {
-    }
-}
 
 pub struct World {
     // pub objects: HashMap<Uuid, Box<dyn GameObject>>,
     pub player: Player,
-    pub stage: Vec<Stage>,
+    pub stage: HashMap<Uuid, Stage>,
 
     pub debug_objects: Vec<crate::graphics::ResolveInstance>,
 }
@@ -154,30 +113,32 @@ impl World {
             Vector2::new(0.0, 0.0)
         );
 
-        let stage_left = Stage::new(
-            Vector2::new(-2.0, 0.0),
-            Vector2::new(0.25, 1.0),
-        );
+        // let stage_left = Stage::new(
+        //     Vector2::new(-2.0, 0.0),
+        //     Vector2::new(0.25, 1.0),
+        // );
 
-        let stage_right = Stage::new(
-            Vector2::new(1.0, 0.0),
-            Vector2::new(0.25, 1.0),
-        );
+        // let stage_right = Stage::new(
+        //     Vector2::new(1.0, 0.0),
+        //     Vector2::new(0.25, 1.0),
+        // );
 
-        let stage_top = Stage::new(
-            Vector2::new(0.0, 1.0),
-            Vector2::new(1.0, 0.25),
-        );
+        // let stage_top = Stage::new(
+        //     Vector2::new(0.0, 1.0),
+        //     Vector2::new(1.0, 0.25),
+        // );
 
-        let stage_down = Stage::new(
-            Vector2::new(0.0, 5.0),
-            Vector2::new(5.0, 0.25),
-        );
-        let stage = vec![stage_left, stage_right, stage_top, stage_down];
+        // let stage_down = Stage::new(
+        //     Vector2::new(0.0, 5.0),
+        //     Vector2::new(5.0, 0.25),
+        // );
+        // let stage = vec![stage_left, stage_right, stage_top, stage_down];
 
         // let objects: Vec<Box<dyn GameObject>> = vec![player, stage_left, stage_right, stage_top, stage_down];
 
         // let objects = objects.into_iter().map(|obj| (obj.get_uuid(), obj)).collect();
+        let mut stage = HashMap::new();
+        stage.insert(Uuid::new_v4(), Stage::new());
         Self {
             player,
             stage,
@@ -187,6 +148,27 @@ impl World {
 
     // don't we need a thing to tell it how much to change?
     pub fn update(&mut self, delta_time: f32, input_state: &crate::InputState) {
+        // place blocks
+        {
+            use stage::TileType::*;
+            let pos = input_state.mouse_position;
+            let rounded = Vector2::new((pos.x).floor() as i32, (pos.y).floor() as i32);
+            if input_state.mouse_pos_edge.contains(&MouseButton::Left) {
+                self.stage.values_mut().next().map(|stage| stage.set_tile(&rounded, Some(Dirt)));
+            }
+            if input_state.mouse_pos_edge.contains(&MouseButton::Right) {
+                self.stage.values_mut().next().map(|stage| stage.set_tile(&rounded, None));
+            }
+            self.debug_objects = vec![
+                ResolveInstance {
+                    overlaps: 0,
+                    color: Vector4::new(1.0, 1.0, 1.0, 1.0),
+                    position: Vector2::new(rounded.x as f32, rounded.y as f32) + Vector2::new(0.5, 0.5),
+                    scale: Vector2::new(1.0, 1.0),
+                }
+            ];
+        }
+
         // let move_vec = {
         //     use VirtualKeyCode::*;
         //     Vector2::new(
@@ -211,8 +193,16 @@ impl World {
         let mut to_physics_on: Vec<&mut dyn Physics> = vec![
             &mut self.player
         ];
+        let mut temp_physics: Vec<_> = self.stage.iter()
+            .map(|(_, stage)|
+                 stage.get_physics()
+                 .into_iter())
+            .flatten()
+            .collect();
         to_physics_on.extend(
-            self.stage.iter_mut().map(|stage| stage as &mut dyn Physics)
+            temp_physics
+            .iter_mut()
+            .map(|p| p as &mut dyn Physics)
         );
 
         // construct simulation data
@@ -230,7 +220,7 @@ impl World {
         physics::simulate(delta_time, physics_objects, |id, delta, resolve, p_obj| {
             id_objs.get_mut(&id).map(|obj| {
                 let obj: &mut dyn Physics = *obj;
-                p_obj.bounding_box.add(obj.resolve(delta, resolve));
+                p_obj.bounding_box.add(obj.resolve(id, delta, resolve));
             });
         });
     }

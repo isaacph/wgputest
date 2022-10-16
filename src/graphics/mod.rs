@@ -1,4 +1,4 @@
-use crate::{graphics::texture::Texture, camera::Camera, world::World};
+use crate::{graphics::texture::Texture, camera::Camera, world::{World, physics::Physics}};
 use self::{textured::{TextureRenderer, Instance}, text::{Font, FontRenderer, make_font_infos, default_characters}};
 
 pub mod textured;
@@ -104,11 +104,11 @@ impl RenderEngine {
                     color: cgmath::Vector4::new(0.0, 0.0, 0.0, 1.0),
                 },
             ];
-            instances.extend(world.stage.iter().map(|stage|
+            instances.extend(world.stage.iter().map(|(_, stage)| stage.get_physics()).flatten().map(|(_, phys)|
                 Instance {
-                    position: stage.physics.bounding_box.center,
-                    scale: stage.physics.bounding_box.get_scale(),
-                    color: cgmath::Vector4::new(0.0, 0.0, 0.0, 1.0),
+                    position: phys.bounding_box.center,
+                    scale: phys.bounding_box.get_scale(),
+                    color: cgmath::Vector4::new(0.0, 0.0, 0.2, 1.0),
                 })
             );
             self.texture_renderer.render(render.queue, &mut render_pass, render.camera,
@@ -124,16 +124,16 @@ impl RenderEngine {
                 ])?;
 
             let text = format!("{:?}\n{}", world.player.aerial_state, world.player.physics.velocity.y);
-            let font_instances = vec![(text.clone(),
+            let mut font_instances = vec![(text.clone(),
                     cgmath::Vector2::new(0.0, 38.0),
                     cgmath::Vector4::new(1.0, 0.5, 1.0, 1.0))];
-            // font_instances.extend(world.debug_objects.iter().map(|i| {
-            //     (
-            //         format!("{}", i.overlaps),
-            //         render.camera.world_to_view_pos(cgmath::Point2::new(0.0, 0.0) + i.position),
-            //         cgmath::Vector4::new(i.color.x, i.color.y, i.color.z, 0.8)
-            //     )
-            // }));
+            font_instances.extend(world.debug_objects.iter().map(|i| {
+                (
+                    format!("{}", i.overlaps),
+                    render.camera.world_to_view_pos(cgmath::Point2::new(0.0, 0.0) + i.position),
+                    cgmath::Vector4::new(i.color.x, i.color.y, i.color.z, 0.8)
+                )
+            }));
             self.font_renderer.render(&self.font, render.queue, &mut render_pass, &render.camera,
                 &font_instances)?;
         }
