@@ -108,10 +108,12 @@ impl World {
             let dir = mouse_pos - self.player.physics.bounding_box.center;
             if dir.magnitude2() != 0.0 {
                 let vel = dir.normalize() * 10.0;
-                self.projectiles.push(
-                    Projectile::new(self.player.physics.bounding_box.center,
+                let proj = Projectile::new(self.player.physics.bounding_box.center,
                         // originally Basic projectile
-                                    vel, projectile::ProjectileType::all()[self.player.current_projectile], physics::PhysObjType::Enemy));
+                        vel, projectile::ProjectileType::all()[self.player.current_projectile],
+                        physics::PhysObjType::Enemy);
+                println!("{:?}", self.player.current_projectile);
+                self.projectiles.push(proj);
             }
         }
 
