@@ -17,18 +17,21 @@ pub enum AerialState {
     OnGround
 }
 
-// pub enum HorizontalState {
-//     MovingLeft,
-//     MovingRight,
-//     Stopping,
-//     Stopped
-// }
+#[derive(PartialEq, Debug, Clone)]
+pub enum HorizontalState {
+    MovingLeft,
+    MovingRight,
+    TurningLeft,
+    TurningRight,
+    Stopping,
+    Stopped
+}
 
 pub struct Player {
     id: Uuid,
     pub physics: PhysicsObject,
     pub aerial_state: AerialState,
-    // pub horizontal_state: HorizontalState,
+    pub horizontal_state: HorizontalState,
 }
 
 impl Player {
@@ -41,8 +44,8 @@ impl Player {
 
     const PLAYER_MOVE_SPEED_X: f32 = 7.0;
     const PLAYER_ACCEL_X: f32 = 16.0;
-    const PLAYER_DECEL_X: f32 = 3.0;
-    const PLAYER_TURNAROUND_X: f32 = 12.0; 
+    const PLAYER_STOPPING_MULTIPLIER_X: f32 = 2.5;
+    const PLAYER_TURNAROUND_MULTIPLIER_X: f32 = 12.0; 
     // initialize with position, scale, and color -- velocity and acceleration should be 0 when starting
     pub fn new(position: Vector2<f32>) -> Self {
         let physics = PhysicsObject {
@@ -54,7 +57,7 @@ impl Player {
             id: Uuid::new_v4(),
             physics,
             aerial_state: AerialState::Falling,
-            // horizontal_state: HorizontalState::Stopped
+            horizontal_state: HorizontalState::Stopped
         }
     }
 
@@ -98,6 +101,34 @@ impl Player {
             (_, _, state) => state,
         };
 
+        self.horizontal_state = match (input_state.key_pos_edge.contains(&VirtualKeyCode::A),
+                                input_state.key_pos_edge.contains(&VirtualKeyCode::D),
+                                input_state.key_down.contains(&VirtualKeyCode::A),
+                                input_state.key_down.contains(&VirtualKeyCode::D),
+                                self.horizontal_state.clone() 
+        ) {
+            (true, false, _, _, HorizontalState::MovingLeft) 
+            | (true, false, _, _, HorizontalState::TurningRight) 
+            | (true, false, _, _, HorizontalState::Stopping) 
+            | (true, false, _, _, HorizontalState::Stopped) => HorizontalState::MovingLeft,
+
+            (false, true, _, _, HorizontalState::MovingRight) 
+            | (false, true, _, _, HorizontalState::TurningLeft) 
+            | (false, true, _, _, HorizontalState::Stopping) 
+            | (false, true, _, _, HorizontalState::Stopped) => HorizontalState::MovingRight,
+
+            // inputting A while moving right initiates turning
+            (true, false, _, _, HorizontalState::MovingRight) => HorizontalState::TurningLeft,
+            // inputting D while moving left initiates turning
+            (false, true, _, _, HorizontalState::MovingLeft) => HorizontalState::TurningRight,
+
+            // no inputs is stopping unless stoped
+            (false, false, false, false, state) if state != HorizontalState::Stopped => HorizontalState::Stopping,
+
+            (_, _, _, _, state) => state,
+
+        };
+
         // find target y velocity
         let target_vel_y = match self.aerial_state {
             AerialState::Jumping(_) => -Player::JUMP_SPEED,
@@ -119,15 +150,20 @@ impl Player {
         }
 
         // find player's ability to self-accelerate x
-        let accel_x = delta_time * Player::PLAYER_ACCEL_X;
+        let accel_x = if self.horizontal_state == HorizontalState::Stopping {
+            delta_time * Player::PLAYER_ACCEL_X * Player::PLAYER_STOPPING_MULTIPLIER_X   
+        } else {
+            delta_time * Player::PLAYER_ACCEL_X
+        };
 
         // find target velocity x
         let mut target_vel_x = 0.0;
+        
         if input_state.key_down.contains(&VirtualKeyCode::D) &&
             !input_state.key_down.contains(&VirtualKeyCode::A) {
             // make turning faster than going in the same direction -- less slipppery 
             if target_vel_x < 0.0 {
-                target_vel_x += Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_X;
+                target_vel_x += Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X;
             }
             // strafe right
             target_vel_x += Player::PLAYER_MOVE_SPEED_X;
@@ -135,7 +171,7 @@ impl Player {
         if input_state.key_down.contains(&VirtualKeyCode::A) &&
             !input_state.key_down.contains(&VirtualKeyCode::D) {
             if target_vel_x > 0.0 {
-                target_vel_x -= Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_X;
+                target_vel_x -= Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_MULTIPLIER_X;
             }
             // strafe left
             target_vel_x -= Player::PLAYER_MOVE_SPEED_X;
