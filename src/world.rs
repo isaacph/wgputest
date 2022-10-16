@@ -113,6 +113,8 @@ impl World {
             stage.set_tile(&Vector2::new(12, -9), Some(TileType::Dirt));
             stage.set_tile(&Vector2::new(13, -9), Some(TileType::Dirt));
 
+            stage.set_tile(&Vector2::new(-10,8), Some(TileType::Dirt));
+
             stage.set_tile(&Vector2::new(13, -8), Some(TileType::Dirt));
             stage.set_tile(&Vector2::new(13, -7), Some(TileType::Dirt));
             stage.set_tile(&Vector2::new(13, -6), Some(TileType::Dirt));
@@ -168,6 +170,9 @@ impl World {
             stage.set_tile(&Vector2::new(-5, 6), Some(TileType::Dirt));
             stage.set_tile(&Vector2::new(-6, 6), Some(TileType::Dirt));
             stage.set_tile(&Vector2::new(-7, 6), Some(TileType::Dirt));
+
+            // stage.set_tile(&Vector2::new(-5, 4), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-4, 5), Some(TileType::Dirt));
 
             stage.set_tile(&Vector2::new(-14, 3), Some(TileType::Dirt));
             stage.set_tile(&Vector2::new(-13, 3), Some(TileType::Dirt));
