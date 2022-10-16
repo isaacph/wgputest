@@ -136,7 +136,7 @@ impl Player {
     // initialize with position, scale, and color -- velocity and acceleration should be 0 when starting
     pub fn new(position: Vector2<f32>) -> Self {
         let physics = PhysicsObject {
-            bounding_box: BoundingBox::new(position, 1.0, 1.0),
+            bounding_box: BoundingBox::new(position, 0.6, 1.0),
             velocity: Vector2::new(0.0, 0.0),
             can_move: true,
             typ: PhysObjType::Player,

@@ -81,7 +81,7 @@ impl BasicEnemy {
     // initialize with position, scale, and color -- velocity and acceleration should be 0 when starting
     pub fn new(position: Vector2<f32>) -> Self {
         let physics = PhysicsObject {
-            bounding_box: BoundingBox::new(position, 0.9, 0.9),
+            bounding_box: BoundingBox::new(position, 0.5, 0.9),
             velocity: Vector2::new(0.0, 0.0),
             can_move: true,
             typ: super::physics::PhysObjType::Enemy,
