@@ -4,9 +4,9 @@ use crate::{bounding_box::BoundingBox, graphics::ResolveInstance};
 use uuid::Uuid;
 use std::collections::HashMap;
 use player::Player;
-use self::{physics::{PhysicsObject, Physics}, stage::Stage};
+use self::{physics::{PhysicsObject, Physics}, stage::Stage, basic_enemy::BasicEnemy};
 
-// pub mod basic_enemy;
+pub mod basic_enemy;
 pub mod player;
 pub mod physics;
 pub mod stage;
@@ -102,6 +102,7 @@ impl Physics for Projectile {
 pub struct World {
     // pub objects: HashMap<Uuid, Box<dyn GameObject>>,
     pub player: Player,
+    pub basic_enemy: BasicEnemy,
     pub stage: HashMap<Uuid, Stage>,
 
     pub debug_objects: Vec<crate::graphics::ResolveInstance>,
@@ -111,6 +112,9 @@ impl World {
     pub fn new() -> Self {
         let player = Player::new(
             Vector2::new(0.0, 0.0)
+        );
+        let basic_enemy = BasicEnemy::new(
+            Vector2::new(2.0, 0.0)
         );
 
         // let stage_left = Stage::new(
@@ -141,8 +145,9 @@ impl World {
         stage.insert(Uuid::new_v4(), Stage::new());
         Self {
             player,
+            basic_enemy,
             stage,
-            debug_objects: vec![]
+            debug_objects: vec![],
         }
     }
 
@@ -180,6 +185,8 @@ impl World {
         // self.player.physics.velocity = move_vec;
         self.player.update(delta_time, input_state);
 
+        self.basic_enemy.update(delta_time);
+
         // update
         // for (id, object) in self.objects {
         //     
@@ -191,7 +198,8 @@ impl World {
     fn physics(&mut self, delta_time: f32) {
         // gather all who want to be physic'd
         let mut to_physics_on: Vec<&mut dyn Physics> = vec![
-            &mut self.player
+            &mut self.player,
+            &mut self.basic_enemy,
         ];
         let mut temp_physics: Vec<_> = self.stage.iter()
             .map(|(_, stage)|
