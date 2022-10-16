@@ -142,7 +142,8 @@ impl Player {
                 let mut x: HashSet<_> = vec![PhysObjType::Wall].into_iter().collect();
                 x.extend(ProjectileType::all().into_iter().map(|p| PhysObjType::Projectile(p)));
                 x
-            }
+            },
+            move_by: vec![PhysObjType::Wall].into_iter().collect(),
         };
         Self {
             id: Uuid::new_v4(),

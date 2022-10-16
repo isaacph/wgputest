@@ -5,7 +5,7 @@ use crate::bounding_box::BoundingBox;
 
 use super::{IDObject, projectile::ProjectileType};
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum PhysObjType {
     Player,
     Wall,
@@ -52,13 +52,14 @@ impl Physics for (Uuid, PhysicsObject) {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PhysicsObject {
     pub bounding_box: BoundingBox,
     pub velocity: Vector2<f32>,
     pub can_move: bool,
     pub typ: PhysObjType,
     pub collides_with: HashSet<PhysObjType>,
+    pub move_by: HashSet<PhysObjType>,
 }
 
 type PhysicsID = Uuid;
@@ -77,17 +78,24 @@ pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, Vector2<f32>, &mut PhysicsObje
     for id in obj_ids {
         let obj = objects.get(&id).unwrap();
         let obj_typ = obj.typ;
+        let obj_collides_with = obj.collides_with.clone();
+        let obj_move_by = obj.move_by.clone();
         if obj.can_move {
             let delta = obj.velocity * delta_time;
             // finds the number of overlaps of one bounding box against the self
 
             let find_overlaps = |objects: &HashMap<Uuid, PhysicsObject>, box_a: &BoundingBox, box_a_id: Uuid| {
                 objects.iter().fold((0, vec![]), |(count, mut types), (other_id, other)| {
-                    if *other_id != box_a_id && other.collides_with.contains(&obj_typ) {
+                    if *other_id != box_a_id {
                         let box_b = other.bounding_box.clone();
                         if box_a.does_intersect(&box_b) {
-                            types.push(other.typ);
-                            return (count + 1, types)
+                            if other.collides_with.contains(&obj_typ) &&
+                                obj_collides_with.contains(&other.typ) {
+                                types.push(other_id.clone());
+                            }
+                            if obj_move_by.contains(&other.typ) {
+                                return (count + 1, types)
+                            }
                         }
                     }
                     (count, types)
@@ -98,7 +106,7 @@ pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, Vector2<f32>, &mut PhysicsObje
                 Vector2::new(delta.x, 0.0),
                 Vector2::new(0.0, delta.y),
             ] {
-                let mut overlap_types = vec![];
+                let mut overlappers = vec![];
                 let obj = objects.get(&id).unwrap();
                 let mut box_a = obj.bounding_box.clone();
 
@@ -106,15 +114,16 @@ pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, Vector2<f32>, &mut PhysicsObje
                 box_a.add(delta);
 
                 // get starting overlaps
-                let (starting_overlaps, types) = find_overlaps(&objects, &box_a, id);
-                overlap_types.extend(types.into_iter());
+                let (starting_overlaps, ov) = find_overlaps(&objects, &box_a, id);
+                overlappers.extend(ov.into_iter());
 
                 // find best way to resolve collisions
                 let mut best_resolve: Vector2<f32> = Vector2::new(0.0, 0.0);
                 let mut best_resolve_len_sq = delta.magnitude2();
                 let mut best_resolve_overlaps = starting_overlaps;
                 for (other_id, other) in &objects {
-                    if *other_id != id && other.collides_with.contains(&obj.typ) {
+                    if *other_id != id &&
+                            obj_move_by.contains(&other.typ) {
                         // got a non-me other
                         let box_b = other.bounding_box.clone();
                         let resolve_options = box_a.resolve_options(&box_b);
@@ -143,8 +152,21 @@ pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, Vector2<f32>, &mut PhysicsObje
                     }
                 }
 
+                // if let PhysObjType::Projectile(_) = obj_typ {
+                //     println!("Phys proj1");
+                // }
+
+                let overlap_types = overlappers.iter()
+                    .flat_map(|id| objects.get(id))
+                    .map(|obj| obj.typ).collect();
+
                 let obj = objects.get_mut(&id).unwrap();
                 resolve(id, delta, best_resolve, obj, overlap_types);
+                overlappers.iter().for_each(|id| {
+                    objects.get_mut(id).map(|obj| {
+                        resolve(*id, Vector2::zero(), Vector2::zero(), obj, vec![obj_typ]);
+                    });
+                });
             }
         }
     }

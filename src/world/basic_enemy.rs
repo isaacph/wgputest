@@ -74,6 +74,7 @@ impl BasicEnemy {
                 x.extend(ProjectileType::all().into_iter().map(|p| PhysObjType::Projectile(p)));
                 x
             },
+            move_by: vec![PhysObjType::Wall].into_iter().collect(),
         };
         Self {
             id: Uuid::new_v4(),
@@ -189,6 +190,12 @@ impl Physics for BasicEnemy {
             // horizontal collision
             self.physics.velocity.x *= -1.0;
             self.direction = self.direction.reverse();
+        }
+        if types.iter().find(|t| match t {
+            PhysObjType::Projectile(_) => true,
+            _ => false
+        }).is_some() {
+            self.physics.velocity.y = -10.0;
         }
         delta + resolve
     }

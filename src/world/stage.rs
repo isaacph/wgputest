@@ -54,6 +54,7 @@ impl Physics for Stage {
                 velocity: Vector2::new(0.0, 0.0),
                 typ: PhysObjType::Wall,
                 collides_with: PhysObjType::all(),
+                move_by: vec![PhysObjType::Wall].into_iter().collect(),
             })
         ).collect()
     }

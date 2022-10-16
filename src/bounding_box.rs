@@ -4,7 +4,7 @@
 
 use cgmath::{Vector2, Vector4};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct BoundingBox {
     pub center: Vector2<f32>,
     pub width: f32,

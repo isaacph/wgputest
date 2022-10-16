@@ -123,6 +123,13 @@ impl RenderEngine {
                     color: cgmath::Vector4::new(0.0, 0.0, 0.2, 1.0),
                 })
             );
+            instances.extend(world.projectiles.iter().map(|projectile| projectile.get_physics()).flatten().map(|(_, phys)|
+                Instance {
+                    position: phys.bounding_box.center,
+                    scale: phys.bounding_box.get_scale(),
+                    color: cgmath::Vector4::new(1.0, 0.0, 0.0, 1.0),
+                })
+            );
             self.texture_renderer.render(render.queue, &mut render_pass, render.camera,
                 vec![
                    (

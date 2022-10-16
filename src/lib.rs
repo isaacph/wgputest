@@ -1,4 +1,4 @@
-use cgmath::{Vector2, Zero, Point2, EuclideanSpace};
+use cgmath::{Vector2, Zero, Point2, EuclideanSpace, Vector4};
 use chatbox::Chatbox;
 use graphics::{RenderEngine, text::BaseFontInfoContainer};
 use instant::Instant;
@@ -15,6 +15,8 @@ use winit::window::Window;
 use wasm_bindgen::prelude::*;
 
 use world::World;
+
+use crate::{world::stage, graphics::ResolveInstance};
 
 mod bounding_box;
 mod camera;
@@ -108,6 +110,11 @@ pub enum FocusMode {
     Default, Chatbox
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum GameState {
+    Game, Editor
+}
+
 pub struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -127,6 +134,7 @@ pub struct State {
 
     pub chatbox: Chatbox,
     pub focus_mode: FocusMode,
+    pub game_state: GameState,
 }
 
 pub struct InputState {
@@ -136,6 +144,7 @@ pub struct InputState {
     pub mouse_pos_edge: HashSet<MouseButton>,
     pub mouse_position: Vector2<f32>,
     pub commands: Vec<String>,
+    pub edit: bool,
 }
 
 impl State {
@@ -216,10 +225,12 @@ impl State {
                 mouse_pos_edge: HashSet::new(),
                 mouse_position: Vector2::zero(),
                 commands: vec![],
+                edit: true,
             },
             mouse_pos_view: Vector2::zero(),
             chatbox,
             focus_mode: FocusMode::Default,
+            game_state: GameState::Game,
         }
     }
 
@@ -341,6 +352,8 @@ impl State {
         if self.input_state.commands.iter().map(|command| {
             match command.split(' ').collect::<Vec<_>>()[..] {
                 ["exit"] => return true,
+                ["edit"] => self.game_state = GameState::Editor,
+                ["game"] => self.game_state = GameState::Game,
                 _ => self.chatbox.println("Unknown command"),
             }
             return false;
@@ -354,7 +367,32 @@ impl State {
         let delta_time = ((frame - self.last_frame).as_nanos() as f64 / 1000000000.0) as f32;
         self.last_frame = frame;
 
-        self.world.update(delta_time, &self.input_state, &mut self.chatbox);
+        if self.game_state == GameState::Editor {
+            // place blocks
+            use stage::TileType::*;
+            let pos = self.input_state.mouse_position;
+            let rounded = Vector2::new((pos.x).floor() as i32, (pos.y).floor() as i32);
+            if self.input_state.mouse_pos_edge.contains(&MouseButton::Left) {
+                self.world.stage.values_mut().next().map(|stage| stage.set_tile(&rounded, Some(Dirt)));
+            }
+            if self.input_state.mouse_pos_edge.contains(&MouseButton::Right) {
+                self.world.stage.values_mut().next().map(|stage| stage.set_tile(&rounded, None));
+            }
+            self.world.debug_objects = vec![
+                ResolveInstance {
+                    overlaps: 0,
+                    color: Vector4::new(1.0, 1.0, 1.0, 1.0),
+                    position: Vector2::new(rounded.x as f32, rounded.y as f32) + Vector2::new(0.5, 0.5),
+                    scale: Vector2::new(1.0, 1.0),
+                }
+            ];
+        } else {
+            // shoot stuff, implemented in world update
+        }
+
+        if self.game_state == GameState::Game {
+            self.world.update(delta_time, &self.input_state);
+        }
 
         // camera update
         self.camera_controller.update_camera(delta_time, &mut self.camera);
