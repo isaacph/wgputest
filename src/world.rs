@@ -10,6 +10,7 @@ pub mod basic_enemy;
 pub mod player;
 pub mod physics;
 pub mod stage;
+pub mod projectile;
 
 pub trait IDObject {
     fn get_uuid(&self) -> Uuid;
@@ -17,87 +18,6 @@ pub trait IDObject {
 
 pub trait GameObject: Physics + IDObject {
 }
-
-// pub struct GameObjectData {
-//     // carryover info from preexisting GameObject class 
-//     pub scale: Vector2<f32>,
-//     pub color: Vector4<f32>, // in the future don't store any rendering info inside the world
-// }
-// 
-// impl GameObjectData {
-//     pub fn new_moving(position: Vector2<f32>, scale: Vector2<f32>, color: Vector4<f32>, 
-//             velocity: Vector2<f32>) -> Self {
-//         Self {
-//             bounding_box: BoundingBox::new(position, 1.0 * scale.x, 1.0 * scale.y),
-//             velocity,
-//             scale,
-//             color,
-//         }
-//     }
-//     
-//     pub fn new(position: Vector2<f32>, scale: Vector2<f32>, color: Vector4<f32>) -> Self {
-//         Self {
-//             bounding_box: BoundingBox::new(position, 1.0 * scale.x, 1.0 * scale.y),
-//             velocity: Vector2::new(0.0, 0.0),
-//             scale,
-//             color,
-//         }
-//     }
-// 
-//     fn get_instance(&self) -> Instance {
-//         return Instance {
-//             position: self.bounding_box.center,
-//             scale: self.scale,
-//             color: self.color,
-//         };
-//     }
-// }
-
-
-pub struct Projectile {
-    id: Uuid,
-    physics: PhysicsObject
-}
-
-
-impl Projectile {
-    // initialize with position, scale, and color -- velocity and acceleration should be 0 when starting
-    pub fn new(position: Vector2<f32>, scale: Vector2<f32>) -> Self {
-        let physics = PhysicsObject {
-            bounding_box: BoundingBox::new(position, scale.x, scale.y),
-            velocity: Vector2::new(0.0, 0.0),
-            can_move: true
-        };
-        Self {
-            id: Uuid::new_v4(),
-            physics,
-        }
-    }
-}
-
-impl GameObject for Projectile {
-}
-
-impl IDObject for Projectile {
-    fn get_uuid(&self) -> Uuid {
-        return self.id;
-    }
-}
-
-impl Physics for Projectile {
-    fn get_physics(&self) -> Vec<(Uuid, PhysicsObject)> {
-        vec![(self.id, self.physics.clone())]
-    }
-
-    fn resolve(&mut self, _: Uuid, delta: Vector2<f32>, resolve: Vector2<f32>) -> Vector2<f32> {
-        self.physics.bounding_box.add(delta + resolve);
-        delta + resolve
-    }
-
-    fn pre_physics(&mut self) {
-    }
-}
-
 
 pub struct World {
     // pub objects: HashMap<Uuid, Box<dyn GameObject>>,
@@ -225,10 +145,10 @@ impl World {
         id_objs.values_mut().for_each(|o| o.pre_physics());
 
         // simulate them
-        physics::simulate(delta_time, physics_objects, |id, delta, resolve, p_obj| {
+        physics::simulate(delta_time, physics_objects, |id, delta, resolve, p_obj, types| {
             id_objs.get_mut(&id).map(|obj| {
                 let obj: &mut dyn Physics = *obj;
-                p_obj.bounding_box.add(obj.resolve(id, delta, resolve));
+                p_obj.bounding_box.add(obj.resolve(id, delta, resolve, types));
             });
         });
     }

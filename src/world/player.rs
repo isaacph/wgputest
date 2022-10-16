@@ -1,10 +1,12 @@
+use std::collections::HashSet;
+
 use cgmath::{Vector2, Vector4};
 use uuid::Uuid;
 use winit::event::VirtualKeyCode;
 
 use crate::{bounding_box::BoundingBox, InputState};
 
-use super::{PhysicsObject, Projectile, GameObject, IDObject, Physics};
+use super::{PhysicsObject, GameObject, IDObject, Physics, physics::PhysObjType, projectile::{Projectile, ProjectileType}};
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Direction {
@@ -135,6 +137,12 @@ impl Player {
             bounding_box: BoundingBox::new(position, 1.0, 1.0),
             velocity: Vector2::new(0.0, 0.0),
             can_move: true,
+            typ: PhysObjType::Player,
+            collides_with: {
+                let mut x: HashSet<_> = vec![PhysObjType::Wall].into_iter().collect();
+                x.extend(ProjectileType::all().into_iter().map(|p| PhysObjType::Projectile(p)));
+                x
+            }
         };
         Self {
             id: Uuid::new_v4(),
@@ -487,7 +495,7 @@ impl Physics for Player {
         }
     }
 
-    fn resolve(&mut self, _: Uuid, delta: Vector2<f32>, resolve: Vector2<f32>) -> Vector2<f32> {
+    fn resolve(&mut self, _: Uuid, delta: Vector2<f32>, resolve: Vector2<f32>, types: Vec<PhysObjType>) -> Vector2<f32> {
         self.physics.bounding_box.add(delta + resolve);
         if resolve.y < 0.0 {
             // on colliding with the ground
@@ -504,6 +512,10 @@ impl Physics for Player {
             self.horizontal_state = HorizontalState::Stopped;
         }
         delta + resolve
+    }
+
+    fn typ(&self) -> PhysObjType {
+        PhysObjType::Player
     }
 }
 

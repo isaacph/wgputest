@@ -77,7 +77,12 @@ pub async fn run() {
                 }
             },
             Event::RedrawRequested(window_id) if window_id == window.id() => {
-                state.update();
+                match state.update() {
+                    true => {
+                        *control_flow = ControlFlow::Exit
+                    },
+                    false => (),
+                }
                 match state.render() {
                     Ok(_) => {},
                     // Reconfigure the surface if lsot
@@ -332,7 +337,18 @@ impl State {
         }
     }
 
-    fn update(&mut self) {
+    fn update(&mut self) -> bool {
+        if self.input_state.commands.iter().map(|command| {
+            match command.split(' ').collect::<Vec<_>>()[..] {
+                ["exit"] => return true,
+                _ => self.chatbox.println("Unknown command"),
+            }
+            return false;
+        }).find(|x| *x).is_some() {
+            return true
+        }
+        self.input_state.commands.clear();
+
         // timing
         let frame = Instant::now();
         let delta_time = ((frame - self.last_frame).as_nanos() as f64 / 1000000000.0) as f32;
@@ -349,7 +365,7 @@ impl State {
         self.input_state.key_pos_edge.clear();
         self.input_state.key_neg_edge.clear();
         self.input_state.mouse_pos_edge.clear();
-        self.input_state.commands.clear();
+        false
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

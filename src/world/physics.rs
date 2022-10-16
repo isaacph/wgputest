@@ -1,14 +1,32 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use cgmath::{Vector2, InnerSpace, Zero};
 use uuid::Uuid;
 use crate::bounding_box::BoundingBox;
 
-use super::IDObject;
+use super::{IDObject, projectile::ProjectileType};
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PhysObjType {
+    Player,
+    Wall,
+    Projectile(ProjectileType),
+    Enemy,
+}
+
+impl PhysObjType {
+    pub fn all() -> HashSet<PhysObjType> {
+        use PhysObjType::*;
+        let mut all = vec![Player, Wall, Enemy];
+        all.extend(ProjectileType::all().into_iter().map(|p| Projectile(p)));
+        all.into_iter().collect()
+    }
+}
 
 pub trait Physics: IDObject {
     fn get_physics(&self) -> Vec<(PhysicsID, PhysicsObject)>;
     fn pre_physics(&mut self);
-    fn resolve(&mut self, id: PhysicsID, delta: Vector2<f32>, resolve: Vector2<f32>) -> Vector2<f32>;
+    fn resolve(&mut self, id: PhysicsID, delta: Vector2<f32>, resolve: Vector2<f32>, typ: Vec<PhysObjType>) -> Vector2<f32>;
+    fn typ(&self) -> PhysObjType;
 }
 
 impl IDObject for (Uuid, PhysicsObject) {
@@ -25,8 +43,12 @@ impl Physics for (Uuid, PhysicsObject) {
     fn pre_physics(&mut self) {
     }
 
-    fn resolve(&mut self, id: PhysicsID, delta: Vector2<f32>, resolve: Vector2<f32>) -> Vector2<f32> {
+    fn resolve(&mut self, id: PhysicsID, delta: Vector2<f32>, resolve: Vector2<f32>, typ: Vec<PhysObjType>) -> Vector2<f32> {
         Vector2::zero()
+    }
+
+    fn typ(&self) -> PhysObjType {
+        self.1.typ
     }
 }
 
@@ -35,11 +57,13 @@ pub struct PhysicsObject {
     pub bounding_box: BoundingBox,
     pub velocity: Vector2<f32>,
     pub can_move: bool,
+    pub typ: PhysObjType,
+    pub collides_with: HashSet<PhysObjType>,
 }
 
 type PhysicsID = Uuid;
 
-pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, Vector2<f32>, &mut PhysicsObject)>
+pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, Vector2<f32>, &mut PhysicsObject, Vec<PhysObjType>)>
     (delta_time: f32, mut objects: HashMap<PhysicsID, PhysicsObject>, mut resolve: F) {
     //  for each moveable object
     //      move object in x direction
@@ -52,19 +76,21 @@ pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, Vector2<f32>, &mut PhysicsObje
     let obj_ids: Vec<Uuid> = objects.keys().cloned().collect();
     for id in obj_ids {
         let obj = objects.get(&id).unwrap();
+        let obj_typ = obj.typ;
         if obj.can_move {
             let delta = obj.velocity * delta_time;
             // finds the number of overlaps of one bounding box against the self
 
             let find_overlaps = |objects: &HashMap<Uuid, PhysicsObject>, box_a: &BoundingBox, box_a_id: Uuid| {
-                objects.iter().fold(0, |count, (other_id, other)| {
-                    if *other_id != box_a_id {
+                objects.iter().fold((0, vec![]), |(count, mut types), (other_id, other)| {
+                    if *other_id != box_a_id && other.collides_with.contains(&obj_typ) {
                         let box_b = other.bounding_box.clone();
                         if box_a.does_intersect(&box_b) {
-                            return count + 1
+                            types.push(other.typ);
+                            return (count + 1, types)
                         }
                     }
-                    count
+                    (count, types)
                 })
             };
 
@@ -72,6 +98,7 @@ pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, Vector2<f32>, &mut PhysicsObje
                 Vector2::new(delta.x, 0.0),
                 Vector2::new(0.0, delta.y),
             ] {
+                let mut overlap_types = vec![];
                 let obj = objects.get(&id).unwrap();
                 let mut box_a = obj.bounding_box.clone();
 
@@ -79,14 +106,15 @@ pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, Vector2<f32>, &mut PhysicsObje
                 box_a.add(delta);
 
                 // get starting overlaps
-                let starting_overlaps = find_overlaps(&objects, &box_a, id);
+                let (starting_overlaps, types) = find_overlaps(&objects, &box_a, id);
+                overlap_types.extend(types.into_iter());
 
                 // find best way to resolve collisions
                 let mut best_resolve: Vector2<f32> = Vector2::new(0.0, 0.0);
                 let mut best_resolve_len_sq = delta.magnitude2();
                 let mut best_resolve_overlaps = starting_overlaps;
                 for (other_id, other) in &objects {
-                    if *other_id != id {
+                    if *other_id != id && other.collides_with.contains(&obj.typ) {
                         // got a non-me other
                         let box_b = other.bounding_box.clone();
                         let resolve_options = box_a.resolve_options(&box_b);
@@ -98,7 +126,7 @@ pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, Vector2<f32>, &mut PhysicsObje
                                 box_a.add(resolve_option);
                                 box_a
                             };
-                            let new_overlaps = find_overlaps(&objects, &box_a_resolved, id);
+                            let (new_overlaps, _) = find_overlaps(&objects, &box_a_resolved, id);
                             let new_len_sq =
                                 resolve_option.x * resolve_option.x +
                                 resolve_option.y * resolve_option.y;
@@ -116,7 +144,7 @@ pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, Vector2<f32>, &mut PhysicsObje
                 }
 
                 let obj = objects.get_mut(&id).unwrap();
-                resolve(id, delta, best_resolve, obj);
+                resolve(id, delta, best_resolve, obj, overlap_types);
             }
         }
     }

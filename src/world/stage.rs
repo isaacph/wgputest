@@ -1,7 +1,7 @@
 use cgmath::{Vector2, Zero};
 use uuid::Uuid;
 use crate::bounding_box::BoundingBox;
-use super::{physics::{PhysicsObject, Physics}, GameObject, IDObject};
+use super::{physics::{PhysicsObject, Physics, PhysObjType}, GameObject, IDObject};
 use std::collections::HashMap;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -52,6 +52,8 @@ impl Physics for Stage {
                 bounding_box: BoundingBox::new(Vector2::new(tile.x as f32 + 0.5, tile.y as f32 + 0.5), 1.0, 1.0),
                 can_move: false,
                 velocity: Vector2::new(0.0, 0.0),
+                typ: PhysObjType::Wall,
+                collides_with: PhysObjType::all(),
             })
         ).collect()
     }
@@ -59,7 +61,11 @@ impl Physics for Stage {
     fn pre_physics(&mut self) {
     }
 
-    fn resolve(&mut self, _: Uuid, delta: Vector2<f32>, resolve: Vector2<f32>) -> Vector2<f32> {
+    fn resolve(&mut self, _: Uuid, delta: Vector2<f32>, resolve: Vector2<f32>, _: Vec<PhysObjType>) -> Vector2<f32> {
         cgmath::Vector2::zero()
+    }
+
+    fn typ(&self) -> super::physics::PhysObjType {
+        todo!()
     }
 }

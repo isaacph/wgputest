@@ -1,8 +1,10 @@
+use std::collections::HashSet;
+
 use cgmath::{Vector2, Vector4};
 use uuid::Uuid;
 use winit::event::VirtualKeyCode;
 use crate::{bounding_box::BoundingBox, InputState};
-use super::{GameObject, IDObject, Physics, physics::PhysicsObject};
+use super::{GameObject, IDObject, Physics, physics::{PhysicsObject, PhysObjType}, projectile::{Projectile, ProjectileType}};
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum AerialState {
@@ -66,6 +68,12 @@ impl BasicEnemy {
             bounding_box: BoundingBox::new(position, 0.9, 0.9),
             velocity: Vector2::new(0.0, 0.0),
             can_move: true,
+            typ: super::physics::PhysObjType::Enemy,
+            collides_with: {
+                let mut x: HashSet<_> = vec![PhysObjType::Wall].into_iter().collect();
+                x.extend(ProjectileType::all().into_iter().map(|p| PhysObjType::Projectile(p)));
+                x
+            },
         };
         Self {
             id: Uuid::new_v4(),
@@ -166,7 +174,7 @@ impl Physics for BasicEnemy {
         }
     }
 
-    fn resolve(&mut self, _: Uuid, delta: Vector2<f32>, resolve: Vector2<f32>) -> Vector2<f32> {
+    fn resolve(&mut self, _: Uuid, delta: Vector2<f32>, resolve: Vector2<f32>, types: Vec<PhysObjType>) -> Vector2<f32> {
         self.physics.bounding_box.add(delta + resolve);
         if resolve.y < 0.0 {
             // on colliding with the ground
@@ -183,6 +191,10 @@ impl Physics for BasicEnemy {
             self.direction = self.direction.reverse();
         }
         delta + resolve
+    }
+
+    fn typ(&self) -> super::physics::PhysObjType {
+        super::physics::PhysObjType::Enemy
     }
 }
 
