@@ -4,8 +4,9 @@ use crate::{bounding_box::BoundingBox, graphics::ResolveInstance, chatbox::Chatb
 use uuid::Uuid;
 use std::collections::HashMap;
 use player::Player;
-use self::{physics::{PhysicsObject, Physics}, stage::{Stage, TileType}, basic_enemy::BasicEnemy, projectile::{Projectile, ProjectileType}};
+use self::{physics::{PhysicsObject, Physics}, stage::{Stage, TileType}, basic_enemy::BasicEnemy, jumping_enemy::JumpingEnemy, projectile::{Projectile, ProjectileType}};
 
+pub mod jumping_enemy;
 pub mod basic_enemy;
 pub mod player;
 pub mod physics;
@@ -21,8 +22,11 @@ pub trait GameObject: Physics + IDObject {
 
 pub struct World {
     // pub objects: HashMap<Uuid, Box<dyn GameObject>>,
+    pub time_towards_next_spawn1: f32,
+    pub time_towards_next_spawn2: f32,
     pub player: Player,
     pub basic_enemies: Vec<BasicEnemy>,
+    pub jumping_enemies: Vec<JumpingEnemy>,
     pub stage: HashMap<Uuid, Stage>,
     pub projectiles: Vec<Projectile>,
 
@@ -34,6 +38,9 @@ pub enum GameStateChange {
 }
 
 impl World {
+    const SPAWN_TIME1: f32 = 5.0;
+    const SPAWN_TIME2: f32 = 8.0;
+
     pub fn new() -> Self {
         let player = Player::new(
             Vector2::new(-2.0, 2.0)
@@ -41,24 +48,30 @@ impl World {
         let basic_enemy = BasicEnemy::new(
             Vector2::new(2.0, 2.0)
         );
+        let jumping_enemy = JumpingEnemy::new(
+            Vector2::new(3.0, 2.0)
+        );
 
         let mut stage = HashMap::new();
         stage.insert(Uuid::new_v4(), Stage::new());
         stage.values_mut().for_each(|stage| {
-            stage.set_tile(&Vector2::new(4, 2), Some(TileType::Dirt));
-            stage.set_tile(&Vector2::new(3, 3), Some(TileType::Dirt));
-            stage.set_tile(&Vector2::new(2, 3), Some(TileType::Dirt));
-            stage.set_tile(&Vector2::new(1, 3), Some(TileType::Dirt));
-            stage.set_tile(&Vector2::new(0, 3), Some(TileType::Dirt));
-            stage.set_tile(&Vector2::new(0, 2), Some(TileType::Dirt));
-            stage.set_tile(&Vector2::new(-1, 3), Some(TileType::Dirt));
-            stage.set_tile(&Vector2::new(-2, 3), Some(TileType::Dirt));
-            stage.set_tile(&Vector2::new(-3, 3), Some(TileType::Dirt));
-            stage.set_tile(&Vector2::new(-4, 2), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(4, 10), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(3, 10), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(2, 10), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(1, 10), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(0, 10), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(0, 10), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-1, 10), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-2, 10), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-3, 10), Some(TileType::Dirt));
+            stage.set_tile(&Vector2::new(-4, 10), Some(TileType::Dirt));
         });
         Self {
+            time_towards_next_spawn1: 0.0, 
+            time_towards_next_spawn2: 0.0, 
             player,
             basic_enemies: vec![basic_enemy],
+            jumping_enemies: vec![jumping_enemy],
             stage,
             debug_objects: vec![],
             projectiles: vec![],
@@ -67,6 +80,28 @@ impl World {
 
     // don't we need a thing to tell it how much to change?
     pub fn update(&mut self, delta_time: f32, input_state: &crate::InputState) {
+        // increment time towards next spawn, spawn if appropriate
+        self.time_towards_next_spawn1 += delta_time;
+        if self.time_towards_next_spawn1 >= World::SPAWN_TIME1 {
+            let basic_enemy = BasicEnemy::new(
+                Vector2::new(2.0, 2.0)
+            );
+            self.basic_enemies.push(basic_enemy);
+
+            self.time_towards_next_spawn1 = 0.0;
+        }
+
+        self.time_towards_next_spawn2 += delta_time;
+        if self.time_towards_next_spawn2 >= World::SPAWN_TIME2 {
+            let jumping_enemy = JumpingEnemy::new(
+                Vector2::new(4.0, 2.0)
+            );
+            self.jumping_enemies.push(jumping_enemy);
+
+            self.time_towards_next_spawn2 = 0.0;
+        }
+
+
         // fire projectiles
         if self.player.alive && input_state.mouse_pos_edge.contains(&MouseButton::Left) {
             let mouse_pos = input_state.mouse_position;
@@ -106,6 +141,18 @@ impl World {
         }
         for i in to_destroy.into_iter().rev() {
             self.basic_enemies.remove(i);
+        }
+
+        let mut to_destroy = vec![];
+        for i in 0..self.jumping_enemies.len() {
+            let obj = &mut self.jumping_enemies[i];
+            obj.update(delta_time, &mut self.player);
+            if !obj.alive {
+                to_destroy.push(i);
+            }
+        }
+        for i in to_destroy.into_iter().rev() {
+            self.jumping_enemies.remove(i);
         }
 
         // let move_vec = {
@@ -152,6 +199,11 @@ impl World {
         // add enemies
         to_physics_on.extend(
             self.basic_enemies
+            .iter_mut()
+            .map(|p| p as &mut dyn Physics)
+        );
+        to_physics_on.extend(
+            self.jumping_enemies
             .iter_mut()
             .map(|p| p as &mut dyn Physics)
         );

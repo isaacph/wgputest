@@ -217,6 +217,20 @@ impl RenderEngine {
                     color: cgmath::Vector4::new(1.0, 1.0, 1.0, 1.0),
                 }).collect(), &self.basic_texture)
             );
+            instances.push((world.jumping_enemies.iter().map(|enemy| enemy.get_physics()).flatten().map(|(_, phys)|
+                Instance {
+                    position: phys.bounding_box.center + Vector2::new(0.0, -0.15),
+                    scale: Vector2::new(phys.bounding_box.height, phys.bounding_box.height),
+                    color: cgmath::Vector4::new(1.0, 1.0, 1.0, 1.0),
+                }).collect(), &self.spearman_texture)
+            );
+            // instances.extend(world.jumping_enemies.iter().map(|enemy| enemy.get_physics()).flatten().map(|(_, phys)|
+            //     Instance {
+            //         position: phys.bounding_box.center,
+            //         scale: phys.bounding_box.get_scale(),
+            //         color: cgmath::Vector4::new(0.0, 0.8, 0.0, 1.0),
+            //     })
+            // );
             self.texture_renderer.render(render.queue, &mut render_pass, render.camera,
                 instances)?;
 

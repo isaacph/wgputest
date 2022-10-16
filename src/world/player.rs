@@ -319,7 +319,7 @@ impl Player {
             | (_, _, true, _) => 1,
 
             (_, true, _, _)
-            | (_, _, _, true) => 0,
+            | (_, _, _, true) => 1,
 
             (_, _, _, _) => self.current_projectile
         };
