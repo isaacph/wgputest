@@ -22,7 +22,6 @@ pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, &mut PhysicsObject)>
     //      move object in y direction
     //          check collisions in y
     //          respond to collisions in y
-    // let mut debug_objects = vec![];
 
     let obj_ids: Vec<Uuid> = objects.keys().cloned().collect();
     for id in obj_ids {
@@ -60,10 +59,6 @@ pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, &mut PhysicsObject)>
                 let starting_overlaps = find_overlaps(&objects, &box_a, id);
 
                 // find best way to resolve collisions
-                // this method adds the current position
-                // let mut best_resolve: Vector2<f32> = -delta;
-                // let mut best_resolve_len_sq = delta.magnitude2();
-                // let mut best_resolve_overlaps = starting_overlaps;
                 let mut best_resolve: Vector2<f32> = Vector2::new(0.0, 0.0);
                 let mut best_resolve_len_sq = delta.magnitude2();
                 let mut best_resolve_overlaps = starting_overlaps;
@@ -93,30 +88,11 @@ pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, &mut PhysicsObject)>
                                 best_resolve_len_sq = new_len_sq;
                                 best_resolve_overlaps = new_overlaps;
                             }
-                            // debug_objects.push(crate::graphics::ResolveInstance {
-                            //     position: box_a_resolved.center,
-                            //     scale: box_a.get_scale(),
-                            //     color: Vector4::new(1.0, x, 1.0, 0.2),
-                            //     overlaps: new_overlaps,
-                            // });
                         }
                     }
                 }
-                // best_resolve = Vector2::new(0.0, 0.0);
 
                 total_resolve += delta + best_resolve;
-                
-                // let box_a_resolved = {
-                //     let mut box_a = box_a.clone();
-                //     box_a.add(best_resolve);
-                //     box_a
-                // };
-                // debug_objects.push(crate::graphics::ResolveInstance {
-                //     position: box_a_resolved.center,
-                //     scale: box_a.get_scale(),
-                //     color: Vector4::new(1.0, x, 0.0, 0.2),
-                //     overlaps: find_overlaps(&objects, &box_a_resolved, id),
-                // });
             }
 
             let obj = objects.get_mut(&id).unwrap();
