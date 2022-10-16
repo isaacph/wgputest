@@ -11,16 +11,24 @@ pub enum Direction {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-pub enum State {
+pub enum AerialState {
     Jumping(f32),
     Falling,
     OnGround
 }
 
+// pub enum HorizontalState {
+//     MovingLeft,
+//     MovingRight,
+//     Stopping,
+//     Stopped
+// }
+
 pub struct Player {
     id: Uuid,
     pub physics: PhysicsObject,
-    pub state: State,
+    pub aerial_state: AerialState,
+    // pub horizontal_state: HorizontalState,
 }
 
 impl Player {
@@ -30,6 +38,11 @@ impl Player {
 
     const FALL_SPEED: f32 = 5.0;
     const PLAYER_ACCEL_Y: f32 = 22.0;
+
+    const PLAYER_MOVE_SPEED_X: f32 = 7.0;
+    const PLAYER_ACCEL_X: f32 = 16.0;
+    const PLAYER_DECEL_X: f32 = 3.0;
+    const PLAYER_TURNAROUND_X: f32 = 12.0; 
     // initialize with position, scale, and color -- velocity and acceleration should be 0 when starting
     pub fn new(position: Vector2<f32>) -> Self {
         let physics = PhysicsObject {
@@ -40,7 +53,8 @@ impl Player {
         Self {
             id: Uuid::new_v4(),
             physics,
-            state: State::Falling,
+            aerial_state: AerialState::Falling,
+            // horizontal_state: HorizontalState::Stopped
         }
     }
 
@@ -63,35 +77,35 @@ impl Player {
 
     pub fn update(&mut self, delta_time: f32, input_state: &InputState) {
         // change jump state
-        self.state = match (input_state.key_pos_edge.contains(&VirtualKeyCode::Space),
+        self.aerial_state = match (input_state.key_pos_edge.contains(&VirtualKeyCode::Space),
                             input_state.key_down.contains(&VirtualKeyCode::Space),
-                            self.state.clone()) {
+                            self.aerial_state.clone()) {
             // case where we start jumping
-            (true, _, State::OnGround) =>
-                State::Jumping(0.0),
+            (true, _, AerialState::OnGround) =>
+                AerialState::Jumping(0.0),
 
             // case where we keep jumping
-            (_, false, State::Jumping(timer)) if timer < Player::JUMP_HOLD_TIMER_MIN =>
-                State::Jumping(timer + delta_time),
-            (_, true, State::Jumping(timer)) if timer < Player::JUMP_HOLD_TIMER_MAX =>
-                State::Jumping(timer + delta_time),
+            (_, false, AerialState::Jumping(timer)) if timer < Player::JUMP_HOLD_TIMER_MIN =>
+                AerialState::Jumping(timer + delta_time),
+            (_, true, AerialState::Jumping(timer)) if timer < Player::JUMP_HOLD_TIMER_MAX =>
+                AerialState::Jumping(timer + delta_time),
 
             // go from jumping to falling
-            (_, _, State::Jumping(_)) =>
-                State::Falling,
+            (_, _, AerialState::Jumping(_)) =>
+                AerialState::Falling,
 
             // jumping is not involved, leave it alone
             (_, _, state) => state,
         };
 
         // find target y velocity
-        let target_vel_y = match self.state {
-            State::Jumping(_) => -Player::JUMP_SPEED,
+        let target_vel_y = match self.aerial_state {
+            AerialState::Jumping(_) => -Player::JUMP_SPEED,
             _ => Player::FALL_SPEED,
         };
 
         // find acceleration in y
-        let accel_y = if self.state == State::Jumping(0.0) {
+        let accel_y = if self.aerial_state == AerialState::Jumping(0.0) {
             f32::INFINITY // this means velocity override
         } else {
             Player::PLAYER_ACCEL_Y
@@ -105,19 +119,26 @@ impl Player {
         }
 
         // find player's ability to self-accelerate x
-        let accel_x = delta_time * 10.0;
+        let accel_x = delta_time * Player::PLAYER_ACCEL_X;
 
         // find target velocity x
         let mut target_vel_x = 0.0;
         if input_state.key_down.contains(&VirtualKeyCode::D) &&
             !input_state.key_down.contains(&VirtualKeyCode::A) {
+            // make turning faster than going in the same direction -- less slipppery 
+            if target_vel_x < 0.0 {
+                target_vel_x += Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_X;
+            }
             // strafe right
-            target_vel_x += 1.0;
+            target_vel_x += Player::PLAYER_MOVE_SPEED_X;
         }
         if input_state.key_down.contains(&VirtualKeyCode::A) &&
             !input_state.key_down.contains(&VirtualKeyCode::D) {
+            if target_vel_x > 0.0 {
+                target_vel_x -= Player::PLAYER_MOVE_SPEED_X * Player::PLAYER_TURNAROUND_X;
+            }
             // strafe left
-            target_vel_x -= 1.0;
+            target_vel_x -= Player::PLAYER_MOVE_SPEED_X;
         }
 
         // move player to match target velocity x
@@ -144,8 +165,8 @@ impl Physics for Player {
     }
 
     fn pre_physics(&mut self) {
-        if self.state == State::OnGround {
-            self.state = State::Falling;
+        if self.aerial_state == AerialState::OnGround {
+            self.aerial_state = AerialState::Falling;
         }
     }
 
@@ -154,7 +175,7 @@ impl Physics for Player {
         if resolve.y < 0.0 {
             // on colliding with the ground
             self.physics.velocity.y = f32::min(self.physics.velocity.y, 0.0);
-            self.state = State::OnGround;
+            self.aerial_state = AerialState::OnGround;
         }
         if resolve.y > 0.0 {
             // on colliding with the ceiling
