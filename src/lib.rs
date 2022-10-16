@@ -1,5 +1,6 @@
 use cgmath::{Vector2, Zero, Point2, EuclideanSpace};
-use graphics::RenderEngine;
+use chatbox::Chatbox;
+use graphics::{RenderEngine, text::BaseFontInfoContainer};
 use instant::Instant;
 use std::collections::HashSet;
 
@@ -20,6 +21,7 @@ mod camera;
 mod graphics;
 mod world;
 pub mod util;
+pub mod chatbox;
 
 #[cfg_attr(target_arch="wasm32", wasm_bindgen(start))]
 pub async fn run() {
@@ -64,16 +66,7 @@ pub async fn run() {
                 window_id,
             } if window_id == window.id() => if !state.input(event) { // UPDATED!
                 match event {
-                    WindowEvent::CloseRequested
-                    | WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                state: ElementState::Pressed,
-                                virtual_keycode: Some(VirtualKeyCode::Escape),
-                                ..
-                            },
-                        ..
-                    } => *control_flow = ControlFlow::Exit,
+                    WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                     WindowEvent::Resized(physical_size) => {
                         state.resize(*physical_size);
                     }
@@ -105,6 +98,11 @@ pub async fn run() {
     });
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub enum FocusMode {
+    Default, Chatbox
+}
+
 pub struct State {
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -121,6 +119,9 @@ pub struct State {
     pub world: World,
     pub input_state: InputState,
     pub mouse_pos_view: Vector2<f32>,
+
+    pub chatbox: Chatbox,
+    pub focus_mode: FocusMode,
 }
 
 pub struct InputState {
@@ -189,6 +190,7 @@ impl State {
         let camera_controller = camera::CameraController::new(1.0);
 
         let render_engine = RenderEngine::init(&device, &queue, &config);
+        let chatbox = Chatbox::new(render_engine.font.get_metrics_info(), 7, 38.0, 7, 800.0);
 
         Self {
             surface,
@@ -209,6 +211,8 @@ impl State {
                 mouse_position: Vector2::zero(),
             },
             mouse_pos_view: Vector2::zero(),
+            chatbox,
+            focus_mode: FocusMode::Default,
         }
     }
 
@@ -223,6 +227,51 @@ impl State {
     }
 
     fn input(&mut self, event: &WindowEvent) -> bool {
+        if self.focus_mode == FocusMode::Chatbox {
+            match *event {
+                WindowEvent::KeyboardInput {
+                    input: KeyboardInput {
+                        state: ElementState::Pressed,
+                        virtual_keycode:
+                        Some(key),
+                        ..
+                    },
+                    ..
+                } => {
+                    match key {
+                        VirtualKeyCode::Escape => {
+                            self.focus_mode = FocusMode::Default;
+                                self.chatbox.set_typing_flicker(false);
+                        },
+                        VirtualKeyCode::Return => {
+                            if self.chatbox.get_typing().is_empty() {
+                                self.focus_mode = FocusMode::Default;
+                                self.chatbox.set_typing_flicker(false);
+                            } else {
+                                let typing = self.chatbox.get_typing().clone();
+                                self.chatbox.println(&typing);
+                                self.chatbox.erase_typing();
+                                self.focus_mode = FocusMode::Default;
+                                self.chatbox.set_typing_flicker(false);
+                            }
+                        },
+                        _ => {
+                        }
+                    }
+                    return true
+                },
+                WindowEvent::ReceivedCharacter(c) => {
+                    if c == '\x08' { // backspace
+                        self.chatbox.remove_typing(1);
+                    } else if c == '\n' || c == '\r' || c.to_string().as_bytes()[0] == 13 {
+                        // ahhhhhhhhhhh why can't we capture new lines?
+                    } else {
+                        self.chatbox.add_typing(c);
+                    }
+                },
+                _ => ()
+            };
+        }
         let relevant_inputs = {
             use VirtualKeyCode::*;
             vec![A, S, D, W, E, Space, LShift]
@@ -237,18 +286,27 @@ impl State {
                         ..
                     },
                     ..
-                } if relevant_inputs.contains(&key) => {
-                    match state {
-                        ElementState::Pressed => {
-                            self.input_state.key_down.insert(key);
-                            self.input_state.key_pos_edge.insert(key);
-                        },
-                        ElementState::Released => {
-                            self.input_state.key_down.remove(&key);
-                            self.input_state.key_neg_edge.insert(key);
-                        },
-                    };
-                    true
+                } => match key {
+                    VirtualKeyCode::Return => {
+                        self.focus_mode = FocusMode::Chatbox;
+                        self.chatbox.set_typing_flicker(true);
+                        true
+                    },
+                    _ => {
+                        if relevant_inputs.contains(&key) {
+                            match state {
+                                ElementState::Pressed => {
+                                    self.input_state.key_down.insert(key);
+                                    self.input_state.key_pos_edge.insert(key);
+                                },
+                                ElementState::Released => {
+                                    self.input_state.key_down.remove(&key);
+                                    self.input_state.key_neg_edge.insert(key);
+                                },
+                            };
+                            true
+                        } else { false }
+                    }
                 },
                 WindowEvent::CursorMoved { position, .. } => {
                     let pos = Point2::new(position.x as f32, position.y as f32);
@@ -281,6 +339,8 @@ impl State {
 
         // camera update
         self.camera_controller.update_camera(delta_time, &mut self.camera);
+
+        self.chatbox.update(delta_time);
         
         // clear inputs
         self.input_state.key_pos_edge.clear();
@@ -295,6 +355,6 @@ impl State {
             surface: &mut self.surface,
             camera: &self.camera
         };
-        self.render_engine.render(render_prereq, &self.world)
+        self.render_engine.render(render_prereq, &self.chatbox, &self.world)
     }
 }

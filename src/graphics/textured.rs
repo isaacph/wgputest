@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use cgmath::SquareMatrix;
 use wgpu::util::DeviceExt;
 
-use crate::{camera::Camera, graphics::texture::Texture};
+use crate::{camera::CameraObj, graphics::texture::Texture};
 
 const INSTANCE_BUFFERS: u32 = 64;
 const INSTANCE_BUFFER_DEFAULT: [InstanceRaw; 16] = [InstanceRaw { model: [[0.0; 4]; 4], color: [0.0; 4] }; 16];
@@ -23,8 +23,8 @@ impl CameraUniform {
         }
     }
 
-    fn update_view_proj(&mut self, camera: &Camera) {
-        self.view_proj = camera.build_view_projection_matrix().into();
+    fn update_view_proj<C: CameraObj>(&mut self, camera: &C) {
+        self.view_proj = camera.proj_view().into();
         // self.view_proj = cgmath::Matrix4::identity().into();
     }
 }
@@ -406,7 +406,7 @@ impl TextureRenderer {
         self.current_buffer.set(0)
     }
 
-    pub fn render<'a>(&'a self, queue: &mut wgpu::Queue, render_pass: &mut wgpu::RenderPass<'a>, camera: &Camera, instance_pairs_input: Vec<(Vec<Instance>, &Texture)>) -> Result<(), wgpu::SurfaceError> {
+    pub fn render<'a, C: CameraObj>(&'a self, queue: &mut wgpu::Queue, render_pass: &mut wgpu::RenderPass<'a>, camera: &C, instance_pairs_input: Vec<(Vec<Instance>, &Texture)>) -> Result<(), wgpu::SurfaceError> {
         // update the camera
         let mut camera_uniform = CameraUniform::new();
         camera_uniform.update_view_proj(camera);

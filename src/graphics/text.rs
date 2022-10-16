@@ -1,4 +1,5 @@
 use std::{collections::HashMap, cell::Cell};
+use crate::camera::CameraObj;
 use crate::{util::PartialOrdMinMax, camera::Camera};
 use crate::graphics::texture::Texture;
 
@@ -41,6 +42,13 @@ pub struct FontInfo {
     pub not_found_char: Option<char>,
     pub height: f32,
     pub name: String,
+}
+
+#[derive(Clone)]
+pub struct FontMetricsInfo {
+    pub char_data: HashMap<char, GlyphMetrics>,
+    pub font_size: f32,
+    pub height: f32,
 }
 
 pub fn make_font_infos<'a, T>(bytes: &[u8], font_sizes: &[f32], char_codes: T, not_found_char: Option<char>, name: String)
@@ -200,18 +208,87 @@ impl Font {
             image_size: cgmath::Vector2::new(font_info.image_size.x as f32, font_info.image_size.y as f32),
         })
     }
+}
 
-    pub fn line_height(&self) -> f32 {
+pub trait BaseFontInfoContainer {
+    fn line_height(&self) -> f32;
+    fn font_size(&self) -> f32;
+    fn get_metrics<'a>(&'a self, c: &char) -> Option<&'a GlyphMetrics>;
+    fn get_metrics_info(&self) -> FontMetricsInfo;
+}
+
+impl BaseFontInfoContainer for FontInfo {
+    fn line_height(&self) -> f32 {
         self.height // temp
     }
 
-    pub fn font_size(&self) -> f32 {
+    fn font_size(&self) -> f32 {
         self.font_size
     }
 
-    pub fn text_width(&self, text: &str) -> f32{
+    fn get_metrics<'a>(&'a self, c: &char) -> Option<&'a GlyphMetrics> {
+        self.char_data.get(c)
+    }
+
+    fn get_metrics_info(&self) -> FontMetricsInfo {
+        FontMetricsInfo {
+            char_data: self.char_data.clone(),
+            font_size: self.font_size,
+            height: self.height
+        }
+    }
+}
+
+impl BaseFontInfoContainer for FontMetricsInfo {
+    fn line_height(&self) -> f32 {
+        self.height // temp
+    }
+
+    fn font_size(&self) -> f32 {
+        self.font_size
+    }
+
+    fn get_metrics<'a>(&'a self, c: &char) -> Option<&'a GlyphMetrics> {
+        self.char_data.get(c)
+    }
+
+    fn get_metrics_info(&self) -> FontMetricsInfo {
+        self.clone()
+    }
+}
+
+impl BaseFontInfoContainer for Font {
+    fn line_height(&self) -> f32 {
+        self.height
+    }
+
+    fn font_size(&self) -> f32 {
+        self.font_size
+    }
+
+    fn get_metrics<'a>(&'a self, c: &char) -> Option<&'a GlyphMetrics> {
+        self.metrics.get(c)
+    }
+
+    fn get_metrics_info(&self) -> FontMetricsInfo {
+        FontMetricsInfo {
+            char_data: self.metrics.clone(),
+            font_size: self.font_size.clone(),
+            height: self.height
+        }
+    }
+}
+
+pub trait FontInfoContainer {
+    fn text_width(&self, text: &str) -> f32;
+    // splits lines (word wrap) using maximum line length, new line characters, and white space
+    fn split_lines(&self, text: &str, max_length: Option<f32>) -> Vec<String>;
+}
+
+impl<T> FontInfoContainer for T where T: BaseFontInfoContainer {
+    fn text_width(&self, text: &str) -> f32{
         struct W {cur_adv: f32, longest: f32}
-        text.chars().fold(W {cur_adv: 0.0, longest: 0.0}, |sum: W, c| match self.metrics.get(&c) {
+        text.chars().fold(W {cur_adv: 0.0, longest: 0.0}, |sum: W, c| match self.get_metrics(&c) {
             None => sum, // ignore non-characters
             Some(metrics) =>
                 match c {
@@ -227,7 +304,7 @@ impl Font {
     }
 
     // splits lines (word wrap) using maximum line length, new line characters, and white space
-    pub fn split_lines(&self, text: &str, max_length: Option<f32>) -> Vec<String> {
+    fn split_lines(&self, text: &str, max_length: Option<f32>) -> Vec<String> {
         let max_length = match max_length {
             Some(l) => l,
             None => f32::MAX,
@@ -239,7 +316,7 @@ impl Font {
             cur_line: String::new(),
             cur_line_adv: 0.0,
             lines: Vec::new()
-        }, |mut cur: W, c| match self.metrics.get(&c) {
+        }, |mut cur: W, c| match self.get_metrics(&c) {
             None => cur, // ignore unknown character
             Some(metrics) => match c {
                 '\n' => W { // force a new line
@@ -633,12 +710,12 @@ impl FontRenderer {
         self.current_buffer_pos.set(0);
     }
 
-    pub fn render<'a>(&'a self, font: &Font, queue: &wgpu::Queue, render_pass: &mut wgpu::RenderPass<'a>, camera: &Camera, instances: &Vec<(String, cgmath::Vector2<f32>, cgmath::Vector4<f32>)>) -> Result<(), wgpu::SurfaceError> {
+    pub fn render<'a, C: CameraObj>(&'a self, font: &Font, queue: &wgpu::Queue, render_pass: &mut wgpu::RenderPass<'a>, camera: &C, instances: &Vec<(String, cgmath::Vector2<f32>, cgmath::Vector4<f32>)>) -> Result<(), wgpu::SurfaceError> {
             
         // retrieve bind group for the given texture
         let diffuse_bind_group = self.texture_bind_groups.get_texture_bind_group(&font.sprite_texture)
         .expect("Could not find texture bind group, did you forget to register your font?");
-        let proj = camera.proj();
+        let proj = camera.proj_view();
 
         // split instances apart and reformat them
         let instances_calc = instances.iter().flat_map(|(text, pos, color)| {

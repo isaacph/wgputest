@@ -1,4 +1,4 @@
-use crate::{graphics::texture::Texture, camera::Camera, world::{World, physics::Physics}};
+use crate::{graphics::texture::Texture, camera::Camera, world::{World, physics::Physics}, chatbox::Chatbox};
 use self::{textured::{TextureRenderer, Instance}, text::{Font, FontRenderer, make_font_infos, default_characters}};
 
 pub mod textured;
@@ -14,9 +14,10 @@ pub struct RenderPrereq<'a> {
 
 pub struct RenderEngine {
     pub texture_renderer: TextureRenderer,
+    pub ui_texture_renderer: TextureRenderer,
     pub diffuse_texture: Texture,
     pub solid_texture: Texture,
-    font: Font,
+    pub font: Font,
     font_renderer: FontRenderer,
 }
 
@@ -49,6 +50,8 @@ impl RenderEngine {
             Texture::blank_texture(&device, &queue, "blank").unwrap();
         let mut texture_renderer = TextureRenderer::init(device, queue, config);
         texture_renderer.add_texture(device, [&diffuse_texture, &solid_texture].into_iter());
+        let mut ui_texture_renderer = TextureRenderer::init(device, queue, config);
+        ui_texture_renderer.add_texture(device, [&diffuse_texture, &solid_texture].into_iter());
         let font_info = make_font_infos(
             include_bytes!("arial.ttf"), &[48.0], default_characters().iter(), None, "arial".to_string()).unwrap();
         let font = Font::make_from_info(device, queue, &font_info[0], wgpu::FilterMode::Linear).unwrap();
@@ -60,10 +63,11 @@ impl RenderEngine {
             solid_texture,
             font,
             font_renderer,
+            ui_texture_renderer,
         }
     }
 
-    pub fn render(&mut self, render: RenderPrereq, world: &World) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, render: RenderPrereq, chatbox: &Chatbox, world: &World) -> Result<(), wgpu::SurfaceError> {
         let output = render.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
@@ -95,6 +99,9 @@ impl RenderEngine {
             });
             self.texture_renderer.reset();
             self.font_renderer.reset();
+            self.ui_texture_renderer.reset();
+
+            let ui_camera = render.camera.get_ui_camera();
 
             // render instructions go here
             let mut instances = vec![
@@ -139,7 +146,7 @@ impl RenderEngine {
                     cgmath::Vector4::new(i.color.x, i.color.y, i.color.z, 0.8)
                 )
             }));
-            self.font_renderer.render(&self.font, render.queue, &mut render_pass, &render.camera,
+            self.font_renderer.render(&self.font, render.queue, &mut render_pass, &ui_camera,
                 &font_instances)?;
             
             // copying code above for the purpose of horizontal info
@@ -154,8 +161,30 @@ impl RenderEngine {
             //         cgmath::Vector4::new(i.color.x, i.color.y, i.color.z, 0.8)
             //     )
             // }));
-            self.font_renderer.render(&self.font, render.queue, &mut render_pass, &render.camera,
+            self.font_renderer.render(&self.font, render.queue, &mut render_pass, &ui_camera,
                 &font_instances)?;
+
+            // render ui
+            // render chatbox
+            let (background_instance, chatbox_text_instances) =
+                chatbox.render();
+
+            self.ui_texture_renderer.render(
+                render.queue,
+                &mut render_pass,
+                &ui_camera,
+                vec![
+                    (vec![background_instance], &self.solid_texture)
+                ]
+            )?;
+
+            self.font_renderer.render(
+                &self.font,
+                render.queue,
+                &mut render_pass,
+                &ui_camera,
+                &chatbox_text_instances
+            )?;
         }
 
         // submit will accept anything that implements IntoIter

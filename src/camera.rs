@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use cgmath::{Zero, EuclideanSpace};
+use cgmath::{Zero, EuclideanSpace, Matrix4};
 use winit::event::{WindowEvent, KeyboardInput, VirtualKeyCode, ElementState};
 
 #[rustfmt::skip]
@@ -42,6 +42,12 @@ impl Camera {
         proj
     }
 
+    pub fn get_ui_camera(&self) -> UICamera {
+        UICamera {
+            ortho: self.proj()
+        }
+    }
+
     pub fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
         let zoom_factor = self.zoom_factor();
         let camera_center_offset = self.camera_center_offset();
@@ -69,6 +75,26 @@ impl Camera {
     
     pub fn world_to_view_scale(&self, scale: cgmath::Vector2<f32>) -> cgmath::Vector2<f32> {
         scale * self.zoom_factor()
+    }
+}
+
+pub trait CameraObj {
+    fn proj_view(&self) -> cgmath::Matrix4<f32>;
+}
+
+impl CameraObj for Camera {
+    fn proj_view(&self) -> cgmath::Matrix4<f32> {
+        Camera::build_view_projection_matrix(self)
+    }
+}
+
+pub struct UICamera {
+    ortho: Matrix4<f32>,
+}
+
+impl CameraObj for UICamera {
+    fn proj_view(&self) -> cgmath::Matrix4<f32> {
+        self.ortho
     }
 }
 
