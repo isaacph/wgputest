@@ -1,3 +1,6 @@
+[build]
+rustflags = ["-C", "target-feature=+crt-static"]
+
 [package]
 name = "wgputest"
 version = "0.1.0"

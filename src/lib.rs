@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 use audio::Audio;
 use cgmath::{Vector2, Zero, Point2, EuclideanSpace, Vector4};
 use chatbox::Chatbox;
