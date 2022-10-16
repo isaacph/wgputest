@@ -10,9 +10,9 @@ pub enum Direction {
     Left, Right
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum State {
-    Jumping,
+    Jumping(f32),
     Falling,
     OnGround
 }
@@ -25,6 +25,11 @@ pub struct Player {
 
 impl Player {
     const JUMP_SPEED: f32 = 2.0;
+    const JUMP_HOLD_TIMER_MAX: f32 = 0.5;
+    const JUMP_HOLD_TIMER_MIN: f32 = 0.3;
+
+    const FALL_SPEED: f32 = 5.0;
+    const PLAYER_ACCEL_Y: f32 = 8.0;
     // initialize with position, scale, and color -- velocity and acceleration should be 0 when starting
     pub fn new(position: Vector2<f32>, scale: Vector2<f32>) -> Self {
         let physics = PhysicsObject {
@@ -57,12 +62,46 @@ impl Player {
     }
 
     pub fn update(&mut self, delta_time: f32, input_state: &InputState) {
-        // check for jump
-        if input_state.key_pos_edge.contains(&VirtualKeyCode::Space) {
-            // jump
-            if self.state == State::OnGround {
-                self.physics.velocity.y = -Player::JUMP_SPEED;
-            }
+        // change jump state
+        self.state = match (input_state.key_pos_edge.contains(&VirtualKeyCode::Space),
+                            input_state.key_down.contains(&VirtualKeyCode::Space),
+                            self.state.clone()) {
+            // case where we start jumping
+            (true, _, State::OnGround) =>
+                State::Jumping(0.0),
+
+            // case where we keep jumping
+            (_, false, State::Jumping(timer)) if timer < Player::JUMP_HOLD_TIMER_MIN =>
+                State::Jumping(timer + delta_time),
+            (_, true, State::Jumping(timer)) if timer < Player::JUMP_HOLD_TIMER_MAX =>
+                State::Jumping(timer + delta_time),
+
+            // go from jumping to falling
+            (_, _, State::Jumping(_)) =>
+                State::Falling,
+
+            // jumping is not involved, leave it alone
+            (_, _, state) => state,
+        };
+
+        // find target y velocity
+        let target_vel_y = match self.state {
+            State::Jumping(_) => -Player::JUMP_SPEED,
+            _ => Player::FALL_SPEED,
+        };
+
+        // find acceleration in y
+        let accel_y = if self.state == State::Jumping(0.0) {
+            f32::INFINITY // this means velocity override
+        } else {
+            Player::PLAYER_ACCEL_Y
+        } * delta_time;
+
+        // move player to match target velocity y
+        if f32::abs(self.physics.velocity.y - target_vel_y) < accel_y {
+            self.physics.velocity.y = target_vel_y;
+        } else {
+            self.physics.velocity.y += f32::signum(target_vel_y - self.physics.velocity.y) * accel_y;
         }
 
         // find player's ability to self-accelerate x
@@ -87,9 +126,6 @@ impl Player {
         } else {
             self.physics.velocity.x += f32::signum(target_vel_x - self.physics.velocity.x) * accel_x;
         }
-
-        let gravity = 5.0; // placeholder
-        self.physics.velocity += Vector2::unit_y() * delta_time * gravity;
     }
 }
 

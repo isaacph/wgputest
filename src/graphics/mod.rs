@@ -123,7 +123,7 @@ impl RenderEngine {
                    ),
                 ])?;
 
-            let text = format!("{:?}", world.player.state);
+            let text = format!("{:?}\n{}", world.player.state, world.player.physics.velocity.y);
             let font_instances = vec![(text.clone(),
                     cgmath::Vector2::new(0.0, 38.0),
                     cgmath::Vector4::new(1.0, 0.5, 1.0, 1.0))];
