@@ -225,7 +225,7 @@ impl State {
     fn input(&mut self, event: &WindowEvent) -> bool {
         let relevant_inputs = {
             use VirtualKeyCode::*;
-            vec![A, S, D, W, Space, LShift]
+            vec![A, S, D, W, E, Space, LShift]
         };
         if !self.camera_controller.process_events(event) {
             match *event {
