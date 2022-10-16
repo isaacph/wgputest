@@ -6,9 +6,19 @@ use crate::{bounding_box::BoundingBox, InputState};
 
 use super::{PhysicsObject, Projectile, GameObject, IDObject, Physics};
 
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Direction {
     Left,
     Right
+}
+
+impl Direction {
+    pub fn value(&self) -> f32 {
+        match *self {
+            Direction::Left => -1.0,
+            Direction::Right => 1.0
+        }
+    }
 }
 
 #[derive(PartialEq, Debug, Clone, Copy)]
@@ -29,26 +39,44 @@ pub enum HorizontalState {
 }
 
 pub struct DashInfo {
+    pub num_dashes_left: u32,
     pub dashing_time_elapsed: f32,
     pub cooldown_time_elapsed: f32,
     pub velocity: Vector2<f32>,
 }
 
 impl DashInfo {
+    const NUM_DASHES: u32 = 1;
+
+    const DASH_SPEED: f32 = 20.0;
+    const DASH_ACCEL: f32 = 50.0;
+    const DASH_SLOWDOWN_MULTIPLIER: f32 = 10.0;
+    const DASH_DURATION: f32 = 0.2;
+    // DASH_PEAK begins dash slowdown 
+    const DASH_PEAK: f32 = 0.1;
+    // DASH_HANG_TIME comes after dash peak but before end of dash_duration 
+    const DASH_HANG_TIME: f32 = 0.05;
+    const DASH_COOLDOWN: f32 = 0.1;
+
     pub fn new() -> Self {
         Self {   
+            num_dashes_left: 1,
             dashing_time_elapsed: 0.0,
             cooldown_time_elapsed: 0.0,
             velocity: Vector2::new(0.0, 0.0) 
         }
     } 
 
+    pub fn has_dashes_remaining(&self) -> bool {
+        self.num_dashes_left > 0
+    }
+
     pub fn is_dashing(&self) -> bool {
-        self.dashing_time_elapsed > 0.0
+        self.dashing_time_elapsed > 0.0 && !self.is_in_cooldown()
     }
 
     pub fn is_before_peak(&self) -> bool {
-        self.is_dashing() && self.dashing_time_elapsed < Player::DASH_PEAK
+        self.dashing_time_elapsed >= 0.0 && self.dashing_time_elapsed < DashInfo::DASH_PEAK
     }
 
     pub fn is_after_peak(&self) -> bool {
@@ -56,7 +84,7 @@ impl DashInfo {
     }
 
     pub fn is_hanging(&self) -> bool {
-        self.is_dashing() && self.dashing_time_elapsed > Player::DASH_DURATION - Player::DASH_HANG_TIME 
+        self.is_dashing() && self.dashing_time_elapsed > DashInfo::DASH_DURATION - DashInfo::DASH_HANG_TIME 
     }
 
     pub fn is_dashing_vertically(&self) -> bool {
@@ -66,12 +94,24 @@ impl DashInfo {
     pub fn is_dashing_horizontally(&self) -> bool {
         self.is_dashing() && self.velocity.x != 0.0
     }
+
+    pub fn is_in_cooldown(&self) -> bool {
+        self.cooldown_time_elapsed > 0.0
+    }
+
+    pub fn update_cooldown(&mut self, delta_time: f32) {
+        self.cooldown_time_elapsed += delta_time;
+        if self.cooldown_time_elapsed >= DashInfo::DASH_COOLDOWN {
+            self.cooldown_time_elapsed = 0.0;
+        }
+    }
 }
 
 pub struct Player {
     id: Uuid,
     dash_info: DashInfo,
     pub physics: PhysicsObject,
+    pub direction: Direction,
     pub aerial_state: AerialState,
     pub horizontal_state: HorizontalState,
 }
@@ -89,14 +129,6 @@ impl Player {
     const PLAYER_ON_GROUND_MULTIPLIER_X: f32 = 2.0;
     const PLAYER_TURNAROUND_MULTIPLIER_X: f32 = 14.0; 
 
-    const DASH_SPEED: f32 = 10.0;
-    const DASH_ACCEL: f32 = 20.0;
-    const DASH_DURATION: f32 = 0.25;
-    // DASH_PEAK is the 
-    const DASH_PEAK: f32 = 0.2;
-    const DASH_HANG_TIME: f32 = 0.1;
-    const DASH_COOLDOWN: f32 = 1.0;
-
     // initialize with position, scale, and color -- velocity and acceleration should be 0 when starting
     pub fn new(position: Vector2<f32>) -> Self {
         let physics = PhysicsObject {
@@ -108,6 +140,7 @@ impl Player {
             id: Uuid::new_v4(),
             dash_info: DashInfo::new(),
             physics,
+            direction: Direction::Right,
             aerial_state: AerialState::Falling,
             horizontal_state: HorizontalState::Stopped
         }
@@ -116,10 +149,14 @@ impl Player {
     pub fn update_dash(&mut self, delta_time: f32, input_state: &InputState) {
         let accel_scalar = if self.dash_info.dashing_time_elapsed == 0.0 {
             f32::INFINITY
-        } else if self.dash_info.is_hanging() {
-            0.0
+            // DashInfo::DASH_ACCEL
+        } else if self.dash_info.is_after_peak() {
+            DashInfo::DASH_ACCEL * DashInfo::DASH_SLOWDOWN_MULTIPLIER
+        // } 
+        // else if self.dash_info.is_hanging() {
+        //     0.0
         } else {
-            Player::DASH_ACCEL
+            DashInfo::DASH_ACCEL
         } * delta_time;
 
         let accel = match (input_state.key_pos_edge.contains(&VirtualKeyCode::W), 
@@ -130,23 +167,33 @@ impl Player {
                         input_state.key_down.contains(&VirtualKeyCode::A),
                         input_state.key_down.contains(&VirtualKeyCode::S),
                         input_state.key_down.contains(&VirtualKeyCode::D)) {
-            // left
-            (_, true, _, _, _, _, _, _) => Vector2::new(accel_scalar, 0.0),
-            (_, _, _, _, _, true, _, _) => Vector2::new(accel_scalar, 0.0),
+            // left or right
+            (false, true, false, _, _, _, _, _) 
+            | (_, _, _, _, false, true, false, _) 
+            | (false, _, false, true, _, _, _, _) 
+            | (_, _, _, _, false, _, false, true) => Vector2::new(accel_scalar, 0.0),
 
-            // right
-            (_, _, _, true, _, _, _, _) => Vector2::new(-accel_scalar, 0.0),
-            (_, _, _, _, _, _, _, true) => Vector2::new(-accel_scalar, 0.0),
+            // up or down
+            (_, false, true, false, _, _, _, _)
+            | (_, _, _, _, _, false, true, false) 
+            | (true, false, _, false, _, _, _, _) 
+            | (_, _, _, _, true, false, _, false) => Vector2::new(0.0, accel_scalar),
 
             // diagonals are sqrt 2 to feel good? (circular)
+            (false, true, true, false, _, _, _, _)
+            | (_, _, _, _, false, true, true, false)
+            | (false, false, true, true, _, _, _, _)
+            | (_, _, _, _, false, false, true, true)
+            | (true, true, false, false, _, _, _, _) 
+            | (_, _, _, _, true, true, false, false)
+            | (true, false, false, true, _, _, _, _)
+            | (_, _, _, _, true, false, false, true)  => Vector2::new(accel_scalar / f32::sqrt(2.0), accel_scalar / f32::sqrt(2.0)),
 
-            // default dash should be whichever way the character is facing
-            // for now, just make it left every time
-            (_, _, _, _, _, _, _, _) => Vector2::new(Player::DASH_ACCEL, 0.0),
+            (_, _, _, _, _, _, _, _) => Vector2::new(accel_scalar, 0.0),
         };
 
         let target_speed = if self.dash_info.is_before_peak() {
-            Player::DASH_SPEED
+            DashInfo::DASH_SPEED
         } else {
             0.0
         };
@@ -160,40 +207,68 @@ impl Player {
                         input_state.key_down.contains(&VirtualKeyCode::S),
                         input_state.key_down.contains(&VirtualKeyCode::D)) {
             // left
-            (_, true, _, _, _, _, _, _) => Vector2::new(target_speed, 0.0),
-            (_, _, _, _, _, true, _, _) => Vector2::new(target_speed, 0.0),
+            (false, true, false, _, _, _, _, _)
+            | (_, _, _, _, false, true, false, _) => Vector2::new(-target_speed, 0.0),
 
             // right
-            (_, _, _, true, _, _, _, _) => Vector2::new(-target_speed, 0.0),
-            (_, _, _, _, _, _, _, true) => Vector2::new(-target_speed, 0.0),
+            (false, _, false, true, _, _, _, _)
+            | (_, _, _, _, false, _, false, true) => Vector2::new(target_speed, 0.0),
 
+            // down
+            (_, false, true, false, _, _, _, _)
+            | (_, _, _, _, _, false, true, false) => Vector2::new(0.0, target_speed),
+            
+            // up
+            (true, false, _, false, _, _, _, _) 
+            | (_, _, _, _, true, false, _, false) => Vector2::new(0.0, -target_speed),
+
+            // down-left
+            (false, true, true, false, _, _, _, _)
+            | (_, _, _, _, false, true, true, false) => Vector2::new(-target_speed / f32::sqrt(2.0), target_speed / f32::sqrt(2.0)),
+            
+            // down-right
+            (false, false, true, true, _, _, _, _)
+            | (_, _, _, _, false, false, true, true) => Vector2::new(target_speed / f32::sqrt(2.0), target_speed / f32::sqrt(2.0)),
+            
+            // up-left
+            (true, true, false, false, _, _, _, _) 
+            | (_, _, _, _, true, true, false, false) => Vector2::new(-target_speed / f32::sqrt(2.0), -target_speed / f32::sqrt(2.0)),
+            
+            // up-right
+            (true, false, false, true, _, _, _, _)
+            | (_, _, _, _, true, false, false, true) => Vector2::new(target_speed / f32::sqrt(2.0), -target_speed / f32::sqrt(2.0)),
+            
             // diagonals are sqrt 2 to feel good? (circular)
 
             // default dash should be whichever way the character is facing
-            // for now, just make it left every time
-            (_, _, _, _, _, _, _, _) => Vector2::new(Player::DASH_ACCEL, 0.0),
+            (_, _, _, _, _, _, _, _) => Vector2::new(target_speed * self.direction.value(), 0.0),
         };
 
-        println!("dashing with velocity: ({}, {})", target_vel.x, target_vel.y);
+        println!("dashing with velocity ({}, {}) at time {}", target_vel.x, target_vel.y, self.dash_info.dashing_time_elapsed);
+        
         // "reset" velocities in the relevant directions if we just started dashing
         // for diagonal, these should be halved or set to some low value instead of completely zeroing out
-        if self.dash_info.dashing_time_elapsed == 0.0 {
-            self.physics.velocity.y = if target_vel.x == 0.0 {
-                0.0
-            } else { 
-                self.physics.velocity.y 
-            };
-            self.physics.velocity.x = if target_vel.y == 0.0 {
-                0.0
-            } else { 
-                self.physics.velocity.x 
-            };
-        }
+        self.physics.velocity.y = if target_vel.y == 0.0 {
+            0.0
+        } else { 
+            self.physics.velocity.y 
+        };
+        self.physics.velocity.x = if target_vel.x == 0.0 {
+            0.0
+        } else { 
+            self.physics.velocity.x 
+        };
+        
 
         if f32::abs(self.physics.velocity.x - target_vel.x) < accel.x {
             self.physics.velocity.x = target_vel.x;
         } else {
             self.physics.velocity.x += f32::signum(target_vel.x - self.physics.velocity.x) * accel.x;
+        }
+        if f32::abs(self.physics.velocity.y - target_vel.y) < accel.y {
+            self.physics.velocity.y = target_vel.y;
+        } else {
+            self.physics.velocity.y += f32::signum(target_vel.y - self.physics.velocity.y) * accel.y;
         }
 
         // mimic the code directly above but for the y directions
@@ -204,10 +279,12 @@ impl Player {
         // }
         
         self.dash_info.dashing_time_elapsed += delta_time;
-        if self.dash_info.dashing_time_elapsed >= Player::DASH_DURATION {
+        if self.dash_info.dashing_time_elapsed >= DashInfo::DASH_DURATION + DashInfo::DASH_HANG_TIME {
             self.dash_info.velocity.x = 0.0; 
             self.dash_info.velocity.y = 0.0;
             self.dash_info.dashing_time_elapsed = 0.0;
+
+            self.dash_info.cooldown_time_elapsed += delta_time;
         }
     }
 
@@ -224,9 +301,19 @@ impl Player {
     }
 
     pub fn update(&mut self, delta_time: f32, input_state: &InputState) {
-        if input_state.key_pos_edge.contains(&VirtualKeyCode::E) {
-            println!("E was pressed");
-        }
+        self.direction = match (input_state.key_pos_edge.contains(&VirtualKeyCode::A),
+                                input_state.key_pos_edge.contains(&VirtualKeyCode::D),
+                                input_state.key_down.contains(&VirtualKeyCode::A),
+                                input_state.key_down.contains(&VirtualKeyCode::D)) {
+            (true, _, _, _) 
+            | (_, _, true, _) => Direction::Left,
+            
+            (_, true, _, _) 
+            | (_, _, _, true) => Direction::Right,
+
+            (_,_,_,_) => self.direction
+        };
+        
 
         // change jump state
         self.aerial_state = match (input_state.key_pos_edge.contains(&VirtualKeyCode::Space),
@@ -359,11 +446,23 @@ impl Player {
                 => HorizontalState::Stopped,
 
             (_, _) => self.horizontal_state
-        
-        // is this the best place to handle dash?
         };
-        if self.dash_info.is_dashing() || input_state.key_pos_edge.contains(&VirtualKeyCode::E) {
+
+
+        // handle dash stuff here
+        // is this the best place to handle dash?
+
+        if input_state.key_pos_edge.contains(&VirtualKeyCode::E) 
+            && !(self.dash_info.is_dashing() || self.dash_info.is_in_cooldown())
+            && self.dash_info.has_dashes_remaining() {
+            self.dash_info.num_dashes_left -= 1;
             self.update_dash(delta_time, input_state);
+        } else if self.dash_info.is_dashing() {
+            self.update_dash(delta_time, input_state);
+        } else if self.dash_info.is_in_cooldown() {
+            self.dash_info.update_cooldown(delta_time);
+        } else if self.aerial_state == AerialState::OnGround {
+            self.dash_info.num_dashes_left = DashInfo::NUM_DASHES;
         }
     }
 }
