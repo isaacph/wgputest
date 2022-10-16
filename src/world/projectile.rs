@@ -22,7 +22,7 @@ pub struct Projectile {
     id: Uuid,
     physics: PhysicsObject,
     pub alive: bool,
-    typ: ProjectileType,
+    pub typ: ProjectileType,
     collides_with: PhysObjType,
     timer: f32,
 }

@@ -316,7 +316,7 @@ impl Player {
                                         input_state.key_down.contains(&VirtualKeyCode::Key1),
                                         input_state.key_down.contains(&VirtualKeyCode::Key2)) {
             (true, _, _, _)
-            | (_, _, true, _) => 0,
+            | (_, _, true, _) => 1,
 
             (_, true, _, _)
             | (_, _, _, true) => 0,

@@ -1,6 +1,6 @@
 use cgmath::{Vector2, Vector4};
 
-use crate::{graphics::texture::Texture, camera::Camera, world::{World, physics::Physics}, chatbox::Chatbox};
+use crate::{graphics::texture::Texture, camera::Camera, world::{World, physics::Physics, projectile::ProjectileType}, chatbox::Chatbox};
 use self::{textured::{TextureRenderer, Instance}, text::{Font, FontRenderer, make_font_infos, default_characters}};
 
 pub mod textured;
@@ -29,6 +29,7 @@ pub struct RenderEngine {
     pub tile_texture: Texture,
     pub tile_stained_glass: Texture,
     pub red_ball_texture: Texture,
+    pub green_ball_texture: Texture,
 }
 
 #[derive(Clone)]
@@ -83,6 +84,7 @@ impl RenderEngine {
         let tile_texture = load_image(include_bytes!("tile_glass_holy.png"), "tile_glass_holy.png");
         let tile_stained_glass = load_image(include_bytes!("tile_stained_glass.png"), "tile_stained_glass.png");
         let red_ball_texture = load_image(include_bytes!("red_ball.png"), "red_ball.png");
+        let green_ball_texture = load_image(include_bytes!("green_ball.png"), "green_ball.png");
         texture_renderer.add_texture(
             device,
             vec![
@@ -93,6 +95,7 @@ impl RenderEngine {
                 &tile_texture,
                 &tile_stained_glass,
                 &red_ball_texture,
+                &green_ball_texture,
             ].into_iter());
         ui_texture_renderer.add_texture(
             device,
@@ -112,6 +115,7 @@ impl RenderEngine {
             tile_texture,
             tile_stained_glass,
             red_ball_texture,
+            green_ball_texture,
         }
     }
 
@@ -182,7 +186,24 @@ impl RenderEngine {
                     color: cgmath::Vector4::new(1.0, 1.0, 1.0, 1.0),
                 }).collect(), &self.tile_texture)
             );
-            instances.push((world.projectiles.iter().map(|projectile| projectile.get_physics()).flatten().map(|(_, phys)|
+            instances.push((world.projectiles.iter()
+                            .flat_map(|projectile|
+                                      if projectile.typ == ProjectileType::Basic {
+                                          Some(projectile.get_physics())
+                                      } else { None} )
+                            .flatten().map(|(_, phys)|
+                Instance {
+                    position: phys.bounding_box.center,
+                    scale: phys.bounding_box.get_scale(),
+                    color: cgmath::Vector4::new(1.0, 1.0, 1.0, 1.0),
+                }).collect(), &self.green_ball_texture
+            ));
+            instances.push((world.projectiles.iter()
+                            .flat_map(|projectile|
+                                      if projectile.typ == ProjectileType::Slowing {
+                                          Some(projectile.get_physics())
+                                      } else { None} )
+                            .flatten().map(|(_, phys)|
                 Instance {
                     position: phys.bounding_box.center,
                     scale: phys.bounding_box.get_scale(),
