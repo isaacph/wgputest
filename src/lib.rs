@@ -1,3 +1,4 @@
+use cgmath::{Vector2, Zero, Point2, EuclideanSpace};
 use graphics::RenderEngine;
 use instant::Instant;
 use std::collections::HashSet;
@@ -119,13 +120,15 @@ pub struct State {
 
     pub world: World,
     pub input_state: InputState,
-    pub keyboard_dir: cgmath::Vector2<f32>,
+    pub mouse_pos_view: Vector2<f32>,
 }
 
 pub struct InputState {
     pub key_down: HashSet<VirtualKeyCode>,
     pub key_pos_edge: HashSet<VirtualKeyCode>,
     pub key_neg_edge: HashSet<VirtualKeyCode>,
+    pub mouse_pos_edge: HashSet<MouseButton>,
+    pub mouse_position: Vector2<f32>,
 }
 
 impl State {
@@ -198,12 +201,14 @@ impl State {
             camera_controller,
             last_frame: Instant::now(),
             world: World::new(),
-            keyboard_dir: cgmath::Vector2 { x: 0.0, y: 0.0 },
             input_state: InputState {
                 key_down: HashSet::new(),
                 key_pos_edge: HashSet::new(),
                 key_neg_edge: HashSet::new(),
+                mouse_pos_edge: HashSet::new(),
+                mouse_position: Vector2::zero(),
             },
+            mouse_pos_view: Vector2::zero(),
         }
     }
 
@@ -232,8 +237,7 @@ impl State {
                         ..
                     },
                     ..
-                }
-                 if relevant_inputs.contains(&key) => {
+                } if relevant_inputs.contains(&key) => {
                     match state {
                         ElementState::Pressed => {
                             self.input_state.key_down.insert(key);
@@ -244,6 +248,20 @@ impl State {
                             self.input_state.key_neg_edge.insert(key);
                         },
                     };
+                    true
+                },
+                WindowEvent::CursorMoved { position, .. } => {
+                    let pos = Point2::new(position.x as f32, position.y as f32);
+                    self.mouse_pos_view = pos.to_vec();
+                    self.input_state.mouse_position = self.camera.view_to_world_pos(pos).to_vec();
+                    true
+                },
+                WindowEvent::MouseInput {
+                    state: ElementState::Pressed,
+                    button,
+                    ..
+                } => {
+                    self.input_state.mouse_pos_edge.insert(button);
                     true
                 },
                 _ => false,
@@ -267,6 +285,7 @@ impl State {
         // clear inputs
         self.input_state.key_pos_edge.clear();
         self.input_state.key_neg_edge.clear();
+        self.input_state.mouse_pos_edge.clear();
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

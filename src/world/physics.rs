@@ -1,14 +1,33 @@
 use std::collections::HashMap;
-use cgmath::{Vector2, InnerSpace};
+use cgmath::{Vector2, InnerSpace, Zero};
 use uuid::Uuid;
 use crate::bounding_box::BoundingBox;
 
 use super::IDObject;
 
 pub trait Physics: IDObject {
-    fn get_physics(&self) -> Option<(Uuid, PhysicsObject)>;
+    fn get_physics(&self) -> Vec<(PhysicsID, PhysicsObject)>;
     fn pre_physics(&mut self);
-    fn resolve(&mut self, delta: Vector2<f32>, resolve: Vector2<f32>) -> Vector2<f32>;
+    fn resolve(&mut self, id: PhysicsID, delta: Vector2<f32>, resolve: Vector2<f32>) -> Vector2<f32>;
+}
+
+impl IDObject for (Uuid, PhysicsObject) {
+    fn get_uuid(&self) -> Uuid {
+        self.0
+    }
+}
+
+impl Physics for (Uuid, PhysicsObject) {
+    fn get_physics(&self) -> Vec<(PhysicsID, PhysicsObject)> {
+        vec![self.clone()]
+    }
+
+    fn pre_physics(&mut self) {
+    }
+
+    fn resolve(&mut self, id: PhysicsID, delta: Vector2<f32>, resolve: Vector2<f32>) -> Vector2<f32> {
+        Vector2::zero()
+    }
 }
 
 #[derive(Clone)]

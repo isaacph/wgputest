@@ -285,8 +285,8 @@ impl IDObject for Player {
 }
 
 impl Physics for Player {
-    fn get_physics(&self) -> Option<(Uuid, PhysicsObject)> {
-        Some((self.id, self.physics.clone()))
+    fn get_physics(&self) -> Vec<(Uuid, PhysicsObject)> {
+        vec![(self.id, self.physics.clone())]
     }
 
     fn pre_physics(&mut self) {
@@ -295,7 +295,7 @@ impl Physics for Player {
         }
     }
 
-    fn resolve(&mut self, delta: Vector2<f32>, resolve: Vector2<f32>) -> Vector2<f32> {
+    fn resolve(&mut self, _: Uuid, delta: Vector2<f32>, resolve: Vector2<f32>) -> Vector2<f32> {
         self.physics.bounding_box.add(delta + resolve);
         if resolve.y < 0.0 {
             // on colliding with the ground
