@@ -8,7 +8,7 @@ use uuid::{uuid, Uuid};
 use std::collections::HashMap;
 use player::Player;
 
-use self::physics::PhysicsObject;
+use self::physics::{PhysicsObject, Physics};
 
 // pub mod basic_enemy;
 pub mod player;
@@ -16,11 +16,6 @@ pub mod physics;
 
 pub trait IDObject {
     fn get_uuid(&self) -> Uuid;
-}
-
-pub trait Physics: IDObject {
-    fn get_physics(&self) -> Option<(Uuid, PhysicsObject)>;
-    fn resolve(&mut self, resolve: Vector2<f32>) -> Vector2<f32>;
 }
 
 pub trait GameObject: Physics + IDObject {
@@ -97,9 +92,12 @@ impl Physics for Projectile {
         Some((self.id, self.physics.clone()))
     }
 
-    fn resolve(&mut self, resolve: Vector2<f32>) -> Vector2<f32> {
-        self.physics.bounding_box.add(resolve);
-        resolve
+    fn resolve(&mut self, delta: Vector2<f32>, resolve: Vector2<f32>) -> Vector2<f32> {
+        self.physics.bounding_box.add(delta + resolve);
+        delta + resolve
+    }
+
+    fn pre_physics(&mut self) {
     }
 }
 
@@ -138,9 +136,12 @@ impl Physics for Stage {
         Some((self.id, self.physics.clone()))
     }
 
-    fn resolve(&mut self, resolve: Vector2<f32>) -> Vector2<f32> {
-        self.physics.bounding_box.add(resolve);
-        resolve
+    fn resolve(&mut self, delta: Vector2<f32>, resolve: Vector2<f32>) -> Vector2<f32> {
+        self.physics.bounding_box.add(delta + resolve);
+        delta + resolve
+    }
+
+    fn pre_physics(&mut self) {
     }
 }
 
@@ -192,16 +193,16 @@ impl World {
 
     // don't we need a thing to tell it how much to change?
     pub fn update(&mut self, delta_time: f32, input_state: &crate::InputState) {
-        let move_vec = {
-            use VirtualKeyCode::*;
-            Vector2::new(
-                (input_state.key_down.contains(&D) as i32 - input_state.key_down.contains(&A) as i32) as f32,
-                (input_state.key_down.contains(&S) as i32 - input_state.key_down.contains(&W) as i32) as f32,
-            )
-        };
-
-        // move player by move vec
-        self.player.physics.velocity = move_vec;
+        // let move_vec = {
+        //     use VirtualKeyCode::*;
+        //     Vector2::new(
+        //         (input_state.key_down.contains(&D) as i32 - input_state.key_down.contains(&A) as i32) as f32,
+        //         (input_state.key_down.contains(&S) as i32 - input_state.key_down.contains(&W) as i32) as f32,
+        //     )
+        // };
+        // // move player by move vec
+        // self.player.physics.velocity = move_vec;
+        self.player.update(delta_time, input_state);
 
         // update
         // for (id, object) in self.objects {
@@ -227,12 +228,15 @@ impl World {
         // restructure to turn into callbackable objects
         let mut id_objs: HashMap<Uuid, &mut dyn Physics> = to_physics_on.into_iter()
             .map(|obj| (obj.get_uuid(), obj)).collect();
+        
+        // pre-physics step
+        id_objs.values_mut().for_each(|o| o.pre_physics());
 
         // simulate them
-        physics::simulate(delta_time, physics_objects, |id, resolve, p_obj| {
+        physics::simulate(delta_time, physics_objects, |id, delta, resolve, p_obj| {
             id_objs.get_mut(&id).map(|obj| {
                 let obj: &mut dyn Physics = *obj;
-                p_obj.bounding_box.add(obj.resolve(resolve));
+                p_obj.bounding_box.add(obj.resolve(delta, resolve));
             });
         });
     }

@@ -138,17 +138,17 @@ impl BoundingBox {
     pub fn does_intersect(&self, other: &BoundingBox) -> bool {
         // BoundingBox::get_intersection(self, other) != BoundingBox::NO_INTERSECTION
         let does_intersect_in_x = |a : &BoundingBox, b : &BoundingBox| -> bool {
-            (a.center.x - a.width / 2.0 < b.center.x + b.width / 2.0 && b.center.x - b.width / 2.0 < a.center.x - a.width / 2.0 )
-            || (b.center.x - b.width / 2.0 < a.center.x + a.width / 2.0 && a.center.x - a.width / 2.0 < b.center.x - b.width / 2.0)
-            || (a.center.x - a.width / 2.0 < b.center.x - b.width / 2.0 && b.center.x + b.width / 2.0 < a.center.x + a.width / 2.0 )
-            || (b.center.x - b.width / 2.0 < a.center.x - a.width / 2.0 && a.center.x + a.width / 2.0 < b.center.x + b.width / 2.0)
+            (a.center.x - a.width / 2.0 <= b.center.x + b.width / 2.0 && b.center.x - b.width / 2.0 <= a.center.x - a.width / 2.0 )
+            || (b.center.x - b.width / 2.0 <= a.center.x + a.width / 2.0 && a.center.x - a.width / 2.0 <= b.center.x - b.width / 2.0)
+            || (a.center.x - a.width / 2.0 <= b.center.x - b.width / 2.0 && b.center.x + b.width / 2.0 <= a.center.x + a.width / 2.0 )
+            || (b.center.x - b.width / 2.0 <= a.center.x - a.width / 2.0 && a.center.x + a.width / 2.0 <= b.center.x + b.width / 2.0)
         };
 
         let does_intersect_in_y = |a : &BoundingBox, b : &BoundingBox| -> bool {
-            (a.center.y - a.height / 2.0 < b.center.y + b.height / 2.0 && b.center.y - b.height / 2.0 < a.center.y - a.height / 2.0)
-            || (b.center.y - b.height / 2.0 < a.center.y + a.height / 2.0 && a.center.y - a.height / 2.0 < b.center.y - b.height / 2.0)
-            || (a.center.y - a.height / 2.0 < b.center.y - b.height / 2.0 && b.center.y + b.height / 2.0 < a.center.y + a.height / 2.0)
-            || (b.center.y - b.height / 2.0 < a.center.y - a.height / 2.0 && a.center.y + a.height / 2.0 < b.center.y + b.height / 2.0)
+            (a.center.y - a.height / 2.0 <= b.center.y + b.height / 2.0 && b.center.y - b.height / 2.0 <= a.center.y - a.height / 2.0)
+            || (b.center.y - b.height / 2.0 <= a.center.y + a.height / 2.0 && a.center.y - a.height / 2.0 <= b.center.y - b.height / 2.0)
+            || (a.center.y - a.height / 2.0 <= b.center.y - b.height / 2.0 && b.center.y + b.height / 2.0 <= a.center.y + a.height / 2.0)
+            || (b.center.y - b.height / 2.0 <= a.center.y - a.height / 2.0 && a.center.y + a.height / 2.0 <= b.center.y + b.height / 2.0)
         };
 
         return does_intersect_in_x(self, other) && does_intersect_in_y(self, other);

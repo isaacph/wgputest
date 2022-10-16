@@ -123,9 +123,9 @@ impl RenderEngine {
                    ),
                 ])?;
 
-            let text = format!("Text");
+            let text = format!("{:?}", world.player.state);
             let font_instances = vec![(text.clone(),
-                    cgmath::Vector2::new(0.0, 32.0),
+                    cgmath::Vector2::new(0.0, 38.0),
                     cgmath::Vector4::new(1.0, 0.5, 1.0, 1.0))];
             // font_instances.extend(world.debug_objects.iter().map(|i| {
             //     (

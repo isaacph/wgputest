@@ -3,6 +3,13 @@ use cgmath::{Vector2, InnerSpace};
 use uuid::Uuid;
 use crate::bounding_box::BoundingBox;
 
+use super::IDObject;
+
+pub trait Physics: IDObject {
+    fn get_physics(&self) -> Option<(Uuid, PhysicsObject)>;
+    fn pre_physics(&mut self);
+    fn resolve(&mut self, delta: Vector2<f32>, resolve: Vector2<f32>) -> Vector2<f32>;
+}
 
 #[derive(Clone)]
 pub struct PhysicsObject {
@@ -13,7 +20,7 @@ pub struct PhysicsObject {
 
 type PhysicsID = Uuid;
 
-pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, &mut PhysicsObject)>
+pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, Vector2<f32>, &mut PhysicsObject)>
     (delta_time: f32, mut objects: HashMap<PhysicsID, PhysicsObject>, mut resolve: F) {
     //  for each moveable object
     //      move object in x direction
@@ -28,9 +35,6 @@ pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, &mut PhysicsObject)>
         let obj = objects.get(&id).unwrap();
         if obj.can_move {
             let delta = obj.velocity * delta_time;
-            let box_a = obj.bounding_box.clone();
-            let mut total_resolve = Vector2::new(0.0, 0.0);
-
             // finds the number of overlaps of one bounding box against the self
 
             let find_overlaps = |objects: &HashMap<Uuid, PhysicsObject>, box_a: &BoundingBox, box_a_id: Uuid| {
@@ -49,8 +53,8 @@ pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, &mut PhysicsObject)>
                 Vector2::new(delta.x, 0.0),
                 Vector2::new(0.0, delta.y),
             ] {
-                let mut box_a = box_a.clone();
-                box_a.add(total_resolve);
+                let obj = objects.get(&id).unwrap();
+                let mut box_a = obj.bounding_box.clone();
 
                 // move in delta direction
                 box_a.add(delta);
@@ -92,11 +96,9 @@ pub fn simulate<F: FnMut(PhysicsID, Vector2<f32>, &mut PhysicsObject)>
                     }
                 }
 
-                total_resolve += delta + best_resolve;
+                let obj = objects.get_mut(&id).unwrap();
+                resolve(id, delta, best_resolve, obj);
             }
-
-            let obj = objects.get_mut(&id).unwrap();
-            resolve(id, total_resolve, obj);
         }
     }
 }
