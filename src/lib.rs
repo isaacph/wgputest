@@ -130,6 +130,7 @@ pub struct InputState {
     pub key_neg_edge: HashSet<VirtualKeyCode>,
     pub mouse_pos_edge: HashSet<MouseButton>,
     pub mouse_position: Vector2<f32>,
+    pub commands: Vec<String>,
 }
 
 impl State {
@@ -209,6 +210,7 @@ impl State {
                 key_neg_edge: HashSet::new(),
                 mouse_pos_edge: HashSet::new(),
                 mouse_position: Vector2::zero(),
+                commands: vec![],
             },
             mouse_pos_view: Vector2::zero(),
             chatbox,
@@ -253,6 +255,7 @@ impl State {
                                 self.chatbox.erase_typing();
                                 self.focus_mode = FocusMode::Default;
                                 self.chatbox.set_typing_flicker(false);
+                                self.input_state.commands.push(typing);
                             }
                         },
                         _ => {
@@ -335,7 +338,7 @@ impl State {
         let delta_time = ((frame - self.last_frame).as_nanos() as f64 / 1000000000.0) as f32;
         self.last_frame = frame;
 
-        self.world.update(delta_time, &self.input_state);
+        self.world.update(delta_time, &self.input_state, &mut self.chatbox);
 
         // camera update
         self.camera_controller.update_camera(delta_time, &mut self.camera);
@@ -346,6 +349,7 @@ impl State {
         self.input_state.key_pos_edge.clear();
         self.input_state.key_neg_edge.clear();
         self.input_state.mouse_pos_edge.clear();
+        self.input_state.commands.clear();
     }
 
     fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

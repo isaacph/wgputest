@@ -1,6 +1,6 @@
 use cgmath::{Vector2, Vector4};
 use winit::event::MouseButton;
-use crate::{bounding_box::BoundingBox, graphics::ResolveInstance};
+use crate::{bounding_box::BoundingBox, graphics::ResolveInstance, chatbox::Chatbox};
 use uuid::Uuid;
 use std::collections::HashMap;
 use player::Player;
@@ -152,7 +152,7 @@ impl World {
     }
 
     // don't we need a thing to tell it how much to change?
-    pub fn update(&mut self, delta_time: f32, input_state: &crate::InputState) {
+    pub fn update(&mut self, delta_time: f32, input_state: &crate::InputState, chatbox: &mut Chatbox) {
         // place blocks
         {
             use stage::TileType::*;
