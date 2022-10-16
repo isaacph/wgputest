@@ -181,6 +181,7 @@ impl BasicEnemy {
                     // insert any other blessings/curses here
                 } else {
                     println!("player lose");
+                    player.alive = false;
                     return Some(GameStateChange::PlayerLose)
                 }
             }
