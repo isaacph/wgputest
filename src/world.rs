@@ -42,30 +42,6 @@ impl World {
             Vector2::new(2.0, 2.0)
         );
 
-        // let stage_left = Stage::new(
-        //     Vector2::new(-2.0, 0.0),
-        //     Vector2::new(0.25, 1.0),
-        // );
-
-        // let stage_right = Stage::new(
-        //     Vector2::new(1.0, 0.0),
-        //     Vector2::new(0.25, 1.0),
-        // );
-
-        // let stage_top = Stage::new(
-        //     Vector2::new(0.0, 1.0),
-        //     Vector2::new(1.0, 0.25),
-        // );
-
-        // let stage_down = Stage::new(
-        //     Vector2::new(0.0, 5.0),
-        //     Vector2::new(5.0, 0.25),
-        // );
-        // let stage = vec![stage_left, stage_right, stage_top, stage_down];
-
-        // let objects: Vec<Box<dyn GameObject>> = vec![player, stage_left, stage_right, stage_top, stage_down];
-
-        // let objects = objects.into_iter().map(|obj| (obj.get_uuid(), obj)).collect();
         let mut stage = HashMap::new();
         stage.insert(Uuid::new_v4(), Stage::new());
         stage.values_mut().for_each(|stage| {
