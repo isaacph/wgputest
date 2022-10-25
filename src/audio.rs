@@ -31,7 +31,8 @@ impl Audio {
         // }
         // panic!("devices: {}", string);
         let music1 = include_bytes!("Cursed_Church_Set_V2.mp3").to_vec();
-        let music2 = include_bytes!("Cursed_Church_Boss.mp3").to_vec();
+        // let music2 = include_bytes!("Cursed_Church_Boss.mp3").to_vec();
+        let music2 = vec![];
         // stream_handle.play_raw(music1.convert_samples()).unwrap();
 
         Self {
