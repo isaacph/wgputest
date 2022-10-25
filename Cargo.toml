@@ -21,7 +21,10 @@ instant = "0.1"
 # freetype-sys = { version = "0.15.0" }
 fontdue = "0.7.2"
 itertools = "0.10.5"
-rodio = "0.16.0"
+cpal = "0.13.5"
+crossbeam-channel = "0.5.6"
+symphonia = { version = "0.5.1", features = [ "mp3" ] }
+symphonia-core = "0.5.1"
 
 # webassembly dependency
 cfg-if = "1"
@@ -37,6 +40,7 @@ features = [
     "v4",                # Lets you generate random UUIDs
     "fast-rng",          # Use a faster (but still sufficiently random) RNG
     "macro-diagnostics", # Enable better diagnostics for compile-time UUIDs
+    "js",
 ]
 
 [lib]
@@ -58,4 +62,6 @@ web-sys = { version = "0.3", features = [
     "Window",
     "Element",
 ]}
+cpal = { version = "0.13.5", features = ["wasm-bindgen"] }
+
 
