@@ -21,7 +21,7 @@ instant = "0.1"
 # freetype-sys = { version = "0.15.0" }
 fontdue = "0.7.2"
 itertools = "0.10.5"
-rodio = "0.16.0"
+rodio = { version = "0.16.0", default-features = false, features = [ "symphonia-mp3" ] }
 
 # webassembly dependency
 cfg-if = "1"
@@ -58,4 +58,6 @@ web-sys = { version = "0.3", features = [
     "Window",
     "Element",
 ]}
+getrandom = { features = [ "js" ] }
+cpal = { features = ["wasm-bindgen"] }
 

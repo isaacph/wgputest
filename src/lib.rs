@@ -213,6 +213,8 @@ impl State {
         let chatbox = Chatbox::new(render_engine.font.get_metrics_info(), 7, 38.0, 7, 800.0);
 
         let mut audio = Audio::new();
+        #[cfg(not(target_arch = "wasm32"))]
+        audio.init_audio();
         audio.play(audio::Song::Church);
 
         Self {
@@ -268,7 +270,7 @@ impl State {
                     match key {
                         VirtualKeyCode::Escape => {
                             self.focus_mode = FocusMode::Default;
-                                self.chatbox.set_typing_flicker(false);
+                            self.chatbox.set_typing_flicker(false);
                         },
                         VirtualKeyCode::Return => {
                             if self.chatbox.get_typing().is_empty() {
@@ -351,6 +353,7 @@ impl State {
                     button,
                     ..
                 } => {
+                    self.audio.init_audio();
                     self.input_state.mouse_pos_edge.insert(button);
                     true
                 },
