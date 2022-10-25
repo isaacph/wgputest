@@ -411,6 +411,8 @@ impl State {
         let delta_time = ((frame - self.last_frame).as_nanos() as f64 / 1000000000.0) as f32;
         self.last_frame = frame;
 
+        self.audio.update(delta_time);
+
         if self.game_state == GameState::Editor {
             // place blocks
             use stage::TileType::*;

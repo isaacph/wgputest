@@ -3,7 +3,7 @@ use std::{io::{BufReader, Cursor}, cell::Cell};
 use rodio::{*, source::SamplesConverter};
 
 pub struct Audio {
-    timer: Cell<f32>,
+    timer: f32,
     stream: Option<(OutputStream, OutputStreamHandle)>,
     music1: Vec<u8>,
     music2: Vec<u8>,
@@ -36,7 +36,7 @@ impl Audio {
         // stream_handle.play_raw(music1.convert_samples()).unwrap();
 
         Self {
-            timer: Cell::new(0.0),
+            timer: 0.0,
             stream: None,
             music1,
             music2,
@@ -50,6 +50,7 @@ impl Audio {
             let stream = Some(OutputStream::try_default().unwrap());
             self.stream = stream;
             self.current_song.map(|song| self.play(song));
+            self.timer = 0.0;
             return Some(())
         }
         return None
@@ -61,9 +62,9 @@ impl Audio {
                 Song::Church => CHURCH_TIME,
                 Song::Boss => BOSS_TIME,
             };
-            self.timer.set(self.timer.get() + delta_time);
-            if self.timer.get() >= limit {
-                self.timer.set(0.0);
+            self.timer += delta_time;
+            if self.timer >= limit {
+                self.timer = 0.0;
                 self.play(*song);
             }
         }
@@ -75,8 +76,8 @@ impl Audio {
             self.sink = None;
         }
         self.current_song = Some(song);
-        self.timer.set(0.0);
-        self.stream.as_mut().map(|(stream, stream_handle)| {
+        self.timer = 0.0;
+        self.stream.as_mut().map(|(_, stream_handle)| {
             let file = match song {
                 Song::Church => self.music1.clone(),
                 Song::Boss => self.music2.clone(),
