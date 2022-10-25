@@ -4,7 +4,7 @@ use cgmath::{Vector2, Zero, Point2, EuclideanSpace, Vector4};
 use chatbox::Chatbox;
 use graphics::{RenderEngine, text::BaseFontInfoContainer};
 use instant::Instant;
-use std::collections::HashSet;
+use std::{collections::HashSet, rc::Rc};
 
 use winit::{
     event::*,
@@ -41,20 +41,48 @@ pub async fn run() {
     }
 
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let window = Rc::new(WindowBuilder::new().build(&event_loop).unwrap());
+
+    #[cfg(target_arch = "wasm32")]
+    let c_window = window.clone();
+    #[cfg(target_arch = "wasm32")]
+    let resize_closure = wasm_bindgen::prelude::Closure::<dyn FnMut()>::new(move || {
+        web_sys::window()
+            .and_then(|win| win.document())
+            .and_then(|doc| {
+                use winit::dpi::PhysicalSize;
+                let dst = doc.get_element_by_id("wasm-example")?;
+                let width = dst.client_width();
+                let height = dst.client_height();
+                c_window.set_inner_size(PhysicalSize::new(width, height));
+                Some(())
+            })
+            .expect("Couldn't resize");
+    });
+
 
     #[cfg(target_arch = "wasm32")]
     {
         // Winit prevents sizing with CSS, so we have to set
         // the size manually when on web.
         use winit::dpi::PhysicalSize;
-        window.set_inner_size(PhysicalSize::new(800, 600));
+        use wasm_bindgen::prelude::Closure;
+        use wasm_bindgen::JsCast;
+        // window.set_inner_size(PhysicalSize::new(800, 600));
         
         use winit::platform::web::WindowExtWebSys;
+        let window = window.clone();
         web_sys::window()
-            .and_then(|win| win.document())
+            .and_then(|win| {
+                let window = window.clone();
+                win.set_onresize(Some(resize_closure.as_ref().unchecked_ref()));
+                win.document()
+            })
             .and_then(|doc| {
                 let dst = doc.get_element_by_id("wasm-example")?;
+                let width = dst.client_width();
+                let height = dst.client_height();
+                window.set_inner_size(PhysicalSize::new(width, height));
                 let canvas = web_sys::Element::from(window.canvas());
                 dst.append_child(&canvas).ok()?;
                 Some(())
