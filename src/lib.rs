@@ -48,12 +48,12 @@ pub async fn run() {
     #[cfg(target_arch = "wasm32")]
     let resize_closure = wasm_bindgen::prelude::Closure::<dyn FnMut()>::new(move || {
         web_sys::window()
-            .and_then(|win| win.document())
-            .and_then(|doc| {
+            .and_then(|win| Some((win.document().unwrap(), win.device_pixel_ratio())))
+            .and_then(|(doc, ratio)| {
                 use winit::dpi::PhysicalSize;
                 let dst = doc.get_element_by_id("wasm-example")?;
-                let width = dst.client_width();
-                let height = dst.client_height();
+                let width = (dst.client_width() as f64 * ratio) as i32;
+                let height = (dst.client_height() as f64 * ratio) as i32;
                 c_window.set_inner_size(PhysicalSize::new(width, height));
                 Some(())
             })
@@ -76,12 +76,12 @@ pub async fn run() {
             .and_then(|win| {
                 let window = window.clone();
                 win.set_onresize(Some(resize_closure.as_ref().unchecked_ref()));
-                win.document()
+                Some((win.document().unwrap(), win.device_pixel_ratio()))
             })
-            .and_then(|doc| {
+            .and_then(|(doc, ratio)| {
                 let dst = doc.get_element_by_id("wasm-example")?;
-                let width = dst.client_width();
-                let height = dst.client_height();
+                let width = (dst.client_width() as f64 * ratio) as i32;
+                let height = (dst.client_height() as f64 * ratio) as i32;
                 window.set_inner_size(PhysicalSize::new(width, height));
                 let canvas = web_sys::Element::from(window.canvas());
                 dst.append_child(&canvas).ok()?;
